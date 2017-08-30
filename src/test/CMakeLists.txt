@@ -7,7 +7,14 @@
 
 # collect source files
 
-file( GLOB  hdr *.hpp *.h)
-file( GLOB  cu  *.cu)
+ADD_EXECUTABLE(test-cpp TestCPP.cpp)
+ADD_EXECUTABLE(test-tokenizer TestTokenizer.cpp)
 
-CUDA_ADD_EXECUTABLE(gmm main.cpp ${hdr} ${cu})
+CUDA_ADD_EXECUTABLE(test-tbb TestTBB.cpp)
+#target_link_libraries(test-tbb tbb)
+
+CUDA_ADD_EXECUTABLE(test-scan main.cpp TestScan.cu)
+CUDA_ADD_EXECUTABLE(test-reduce main.cpp TestReduce.cu)
+CUDA_ADD_EXECUTABLE(test-transpose main.cpp TestTranspose.cu)
+
+CUDA_ADD_EXECUTABLE(test-matrix main.cpp TestMatrix.cu)

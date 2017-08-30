@@ -31,6 +31,10 @@
 *.out
 *.app
 
+build/
 bin/
 cmake-build-debug/
 .idea/
+.cproject
+.project
+.DS_Store

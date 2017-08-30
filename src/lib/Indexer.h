@@ -15,6 +15,16 @@ public:
     hash_map<string, int> term2id;
     hash_map<int, string> id2term;
 
+    int addAndGet(const string& term) {
+        if (term2id.find(term) != term2id.end()) {
+            int id = term2id.size();
+            term2id[term] = id;
+            id2term[id] = term;
+            return id;
+        }
+        return term2id[term];
+    }
+
     string& getTerm(int id) {
         return id2term[id];
     }

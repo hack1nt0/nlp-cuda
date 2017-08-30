@@ -1,0 +1,143 @@
+__global__
+void caculatePdfConst(float* _mean, float* _variance,
+                        float* PDF_CONST, int k, int m) {
+    int thread_idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (thread_idx >= k)
+        return;
+    float* mean = _mean + thread_idx * m;
+    float* variance = _variance + thread_idx * m;
+    float determinant = 0.0f;
+    float mean_variance_mean = 0.0f;
+    for (int i = 0; i < m; ++i) {
+        determinant += log(variance[i]);
+        mean_variance_mean += mean[i] / variance[i] * mean[i];
+    }
+    float CONST = determinant + mean_variance_mean;
+//    if (CONST != CONST) { //nan
+//        printf("const is nan here ... %f  %f  \n", determinant, mean_variance_mean);
+//        for (int i = 0; i < m; ++i) {
+//            if (variance[i] < 0) {
+//                printf("negative variance found %d  %f\n", i, variance[i]);
+//            }
+//        }
+//    }
+    PDF_CONST[thread_idx] = CONST;
+}
+
+__device__ __host__
+float log_guassian_pdf(float* data, int* indices, int word_count, float* mean, float* variance, float ADD_CONST, int m) {
+    float pdf = 0;
+    for (int i = 0; i < word_count; ++i) {
+        int index = indices[i];
+        pdf += (data[i] * data[i] - 2 * data[i] * mean[index]) / variance[index];
+    }
+    return (pdf + ADD_CONST + log(PI * 2.f) * m) * -0.5f;
+}
+
+__global__
+void expectationKernel1(float* _data, int* _index,
+                       int* row_ptr, float* _respect,
+                       float* _mean, float* _variance,
+                       float* class_weight,
+                       float* doc_likelihood,
+                       int n, int m, int k,
+                        float* PDF_CONST) {
+    extern __shared__ float shared[];
+    __shared__ float* data;
+    __shared__ int* index;
+    int thread_idx = threadIdx.x + blockDim.x * blockIdx.x;
+    int class_idx = thread_idx % blockDim.x;
+    int document_idx = thread_idx / blockDim.x;
+//    if (class_idx >= k || document_idx >= n)
+//        return;
+    int from = row_ptr[document_idx];
+    int to = row_ptr[document_idx + 1];
+    int word_count = to - from; // todo == 0
+    if (class_idx == 0) {
+        data = shared;
+        index = (int*) (shared + word_count);
+        for (int i = 0; i < word_count; ++i) {
+            data[i] = _data[from + i];
+            index[i] = _index[from + i];
+        }
+    }
+    __syncthreads();
+    float* mean = _mean + class_idx * m;
+    float* variance = _variance + class_idx * m;
+    float* resp = _respect + document_idx * k;
+    float log_pdf = log_guassian_pdf(data, index, word_count, mean, variance, PDF_CONST[class_idx], m);
+//    if (thread_idx == 0) {
+//        printf("doc=%d  class=%d  log_pdf=%f  pdf_const=%f\n", document_idx, class_idx, log_pdf, PDF_CONST[class_idx]);
+//    }
+    resp[class_idx] = log_pdf + log(class_weight[class_idx]);
+}
+
+__global__
+void expectationKernel2(float* _data, int* _index,
+                        int* row_ptr, float* _respect,
+                        float* _mean, float* _variance,
+                        float* class_weight,
+                        float* doc_likelihood,
+                        int n, int m, int k) {
+    int thread_idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (thread_idx >= n)
+        return;
+    float max_log_resp = MIN_FLOAT; //todo
+    float* resp = _respect + thread_idx * k;
+    for (int ki = 0; ki < k; ++ki) {
+        resp[ki] += log(class_weight[ki]);
+        max_log_resp = max(max_log_resp, resp[ki]);
+    }
+    float likelihood = 0.0f;
+    for (int ki = 0; ki < k; ++ki) likelihood += exp(resp[ki] - max_log_resp);
+    likelihood = max_log_resp + log(likelihood);
+    doc_likelihood[thread_idx] = likelihood;
+
+    for (int ki = 0; ki < k; ++ki) {
+        resp[ki] = exp(resp[ki] - likelihood);
+    }
+}
+
+vector<int> kmeansXX();
+
+//        int threads0 = min(16 * 16, k);
+//        int blocks0 = (k + threads0 - 1) / threads0;
+//        caculatePdfConst<<<blocks0, threads0>>>(
+//                        d_mean.data,
+//                        d_variance.data,
+//                        d_PDF_CONST.data,
+//                        k, cols);
+//        checkCudaErrors(cudaDeviceSynchronize());
+//        cout << "gauss const " << endl << d_PDF_CONST << endl;
+//        int threads1 = min(16 * 16, k);
+//        int blocks1 = rows * ((k + threads1 - 1) / threads1);
+//        expectationKernel1<<<blocks1, threads1, sizeof(float) * 1000>>>( //todo
+//                d_dtm.data,
+//                d_dtm.index,
+//                d_dtm.row_ptr,
+//                d_respect.data,
+//                d_mean.data,
+//                d_variance.data,
+//                d_class_weight.data,
+//                d_doc_likelihood.data,
+//                rows, cols, k,
+//                d_PDF_CONST.data
+//        );
+//        checkCudaErrors(cudaDeviceSynchronize());
+////        cout << "log d_respect" << endl << d_respect << endl;
+//        int threads2 = 16 * 16;
+//        int blocks2 = (rows + threads2 - 1) / threads2;
+//        expectationKernel2<<<blocks2, threads2>>>(
+//                        d_dtm.data,
+//                        d_dtm.index,
+//                        d_dtm.row_ptr,
+//                        d_respect.data,
+//                        d_mean.data,
+//                        d_variance.data,
+//                        d_class_weight.data,
+//                        d_doc_likelihood.data,
+//                        rows, cols, k
+//        );
+//        checkCudaErrors(cudaDeviceSynchronize());
+////        cout << "d_respect" << endl << d_respect << endl;
+////        cout << "d_doc_likelihood" << endl << d_doc_likelihood << endl;
