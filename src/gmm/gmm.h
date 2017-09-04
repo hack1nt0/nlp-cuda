@@ -45,6 +45,7 @@ void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned in
 unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class_weight, double* h_likelihood,
                  const double* data, const int* index, const int* row_ptr,
                  unsigned int rows, unsigned int cols, unsigned int nnz,
-                 unsigned int k, unsigned int max_itr, unsigned int seed);
+                 unsigned int k, unsigned int max_itr, unsigned int seed,
+                 double alpha, double beta);
 
 #endif //NLP_CUDA_GMM_H

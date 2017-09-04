@@ -10,4 +10,4 @@
 file( GLOB  hdr *.hpp *.h)
 file( GLOB  cu  *.cu)
 
-CUDA_ADD_EXECUTABLE(test-gmm main.cpp gmm.cu)
+CUDA_ADD_EXECUTABLE(gmm.o main.cpp gmm.cu)

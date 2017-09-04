@@ -119,24 +119,25 @@ GmmModel gmm(const double* data, const int* index, const int* row_ptr,
     model.valid_itr = gmm(model.resp, model.mean, model.conv, model.class_weight, model.likelihood,
                           data, index, row_ptr,
                           rows, cols, nnz,
-                          k, max_itr, seed);
+                          k, max_itr, seed, 1e-5, 1e-5);
     return model;
 }
 
 
 //data may be changed
 unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class_weight, double* h_likelihood,
-         const double* data, const int* index, const int* row_ptr,
-         unsigned int rows, unsigned int cols, unsigned int nnz,
-         unsigned int k, unsigned int max_itr, unsigned int seed) {
+                 const double* data, const int* index, const int* row_ptr,
+                 unsigned int rows, unsigned int cols, unsigned int nnz,
+                 unsigned int k, unsigned int max_itr, unsigned int seed,
+                 double alpha, double beta) {
     srand(seed);
     rand();
     /*
      * normalize
      * todo norm2 or whitening?
      */
-    double class_weight_smoothing = 1e-5f;
-    double variance_smoothing = 1e-6f;
+    double class_weight_smoothing = alpha;
+    double variance_smoothing = beta;
     DeviceSparseMatrix<double> d_dtm(data, index, row_ptr, rows, cols, nnz);
     DeviceSparseMatrix<double> d_dtm_pow_2(data, index, row_ptr, rows, cols, nnz);
     d_dtm_pow_2 = d_dtm_pow_2 ^ 2.;

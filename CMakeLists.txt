@@ -10,15 +10,15 @@ project(nlp-cuda)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-set (EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin/")
-set (CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin/")
-set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin/")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin/")
+#set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 #if (UNIX)
 #    set (CMAKE_CXX_COMPILER "/usr/local/opt/llvm/bin/clang")
 #    #link_directories(/usr/local/opt/llvm/include)
-#    set(CMAKE_CXX_FLAGS "-I/usr/local/opt/llvm/include -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib")
+#    set(CMAKE_CXX_FLAGS "-I/usr/local/opt/llvm/include -L/usr/local/opt/llvm/util -Wl,-rpath,/usr/local/opt/llvm/util")
 #endif()
 
 #find_package(OpenCV REQUIRED)
@@ -33,7 +33,7 @@ link_libraries(${CUDA_CUBLAS_LIBRARIES})
 #link_libraries(${TBB_LIBRARIES} )
 
 
-include_directories(src/lib)
+include_directories(src/util)
 #include_directories(src/cppjieba/include)
 #include_directories(src/cppjieba/deps)
 
