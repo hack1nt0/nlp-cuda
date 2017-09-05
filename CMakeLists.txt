@@ -48,13 +48,14 @@ if(CUDA_FOUND)
   -gencode;arch=compute_30,code=sm_30;
   -gencode;arch=compute_35,code=sm_35;
   -gencode;arch=compute_20,code=sm_20;")
-    else(DARWIN)
+    endif(DARWIN)
+    if(WIN)
         set(CUDA_NVCC_FLAGS "
   -ccbin cl.exe;
   -gencode;arch=compute_30,code=sm_30;
   -gencode;arch=compute_35,code=sm_35;
   -gencode;arch=compute_20,code=sm_20;")
-    endif()
+    endif(WIN)
 
 
     # add -Wextra compiler flag for gcc compilations
