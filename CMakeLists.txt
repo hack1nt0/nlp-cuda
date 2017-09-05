@@ -42,11 +42,20 @@ if(CUDA_FOUND)
     # whether to build x64.  We tell it to support most devices, though,
     # to make sure more people can easily run class code without knowing
     # about this compiler argument
-    set(CUDA_NVCC_FLAGS "
+    if (DARWIN)
+        set(CUDA_NVCC_FLAGS "
   -ccbin /usr/bin/clang;
   -gencode;arch=compute_30,code=sm_30;
   -gencode;arch=compute_35,code=sm_35;
   -gencode;arch=compute_20,code=sm_20;")
+    else(DARWIN)
+        set(CUDA_NVCC_FLAGS "
+  -ccbin cl.exe;
+  -gencode;arch=compute_30,code=sm_30;
+  -gencode;arch=compute_35,code=sm_35;
+  -gencode;arch=compute_20,code=sm_20;")
+    endif()
+
 
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)

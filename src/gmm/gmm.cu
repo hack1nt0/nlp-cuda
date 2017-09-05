@@ -16,10 +16,6 @@
 using namespace std;
 //using namespace cutils;
 
-const double MIN_double = -3.4e+38f;
-const double PI = 3.1415926f;
-
-
 template <typename T>
 __global__
 void expectKernel(DeviceDenseMatrix<T> resp, DeviceSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> conv,
@@ -34,15 +30,15 @@ DeviceDenseMatrix<T> class_weight, DeviceDenseMatrix<T> respConst) {
     * + log(prob(conv[k])) + SUM_i { (dtm[d,i]-mean[k,i])^2 / conv[k,i] } )
     *
     */
-   T result = log(2.f * PI) * mean.cols + respConst.at(k);
+   T result = log(2. * 3.14) * mean.cols + respConst.at(k);
    int from = dtm.row_ptr[d];
    int to   = dtm.row_ptr[d + 1];
    for (int i = from; i < to; ++i) {
        int   m    = dtm.index[i];
        T data = dtm.data[i];
-       result += (data * data - 2.f * data * mean.at(k, m)) / conv.at(k, m);
+       result += (data * data - 2. * data * mean.at(k, m)) / conv.at(k, m);
    }
-   result = log(class_weight.at(k)) - 0.5f * result;
+   result = log(class_weight.at(k)) - .5 * result;
 //   resp.set(d, k, result);
     resp.at(d, k) = result;
 }
@@ -66,7 +62,7 @@ __global__
 void normRespKernel(DeviceDenseMatrix<T> resp, DeviceDenseMatrix<T> logLikelihood) {
     int d = threadIdx.x + blockIdx.x * blockDim.x;
     if (d >= resp.rows) return;
-    double maxLogResp = MIN_double;
+    double maxLogResp = -3.4e+38;
     for (int i = 0; i < resp.cols; ++i) {
         maxLogResp = max(maxLogResp, resp.at(d, i));
     }
@@ -154,7 +150,7 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
 
     DeviceDenseMatrix<double> tmp(cols, k);
 
-    double pre_likelihood = MIN_double; //todo
+    double pre_likelihood = -3.4e+38; //todo
     GpuTimer gpuTimer;
 
     printf("Iteration\t(Average).Log.likelihood\tExpectation(s)\tMaximization(s)\n");

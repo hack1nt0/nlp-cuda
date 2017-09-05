@@ -7,7 +7,8 @@
 #include <Array.h>
 #include <cusparse.h>
 #include <typeinfo>
-#include <cxxabi.h>
+#include <algorithm>
+//#include <cxxabi.h>
 
 #ifndef NLP_CUDA_CUDAUTILS_CU
 #define NLP_CUDA_CUDAUTILS_CU
@@ -491,15 +492,18 @@ const int MAX_THREADS_PER_BLOCK = 1024;
         return prefixHost;
     }
 
-    template <class T>
-    string type(const T &variable) {
-        const char *abiName = typeid(variable).name();
-        int status;
-        char *typeNameChars = abi::__cxa_demangle(abiName, 0, 0, &status);
-        string typeName(typeNameChars);
-        free(typeNameChars);
-        return typeName;
-    }
+/*
+ * cxxabi header file not found on Windows...
+ */
+//    template <class T>
+//    string type(const T &variable) {
+//        const char *abiName = typeid(variable).name();
+//        int status;
+//        char *typeNameChars = abi::__cxa_demangle(abiName, 0, 0, &status);
+//        string typeName(typeNameChars);
+//        free(typeNameChars);
+//        return typeName;
+//    }
 
     template<typename T, typename ETYPE>
     __global__
