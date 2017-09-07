@@ -37,7 +37,7 @@ public:
     }
 };
 
-void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned int k, unsigned int cols);
+void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned int k, unsigned int cols, unsigned int seed);
 
 /*
  * return valid_itr

@@ -20,7 +20,7 @@ Rcpp::List gmm(S4 dtm, int k, int max_itr, int seed, double alpha, double beta) 
     NumericMatrix conv(k, cols);
     NumericVector class_weight(k);
     NumericVector likelihood(max_itr);
-    gmmInit(mean.begin(), conv.begin(), class_weight.begin(), k, cols);
+    gmmInit(mean.begin(), conv.begin(), class_weight.begin(), k, cols, seed);
     gmm(resp.begin(), mean.begin(), conv.begin(), class_weight.begin(), likelihood.begin(),
         data.begin(), index.begin(), row_ptr.begin(),
         rows, cols, data.size(), k, max_itr, seed, alpha, beta);

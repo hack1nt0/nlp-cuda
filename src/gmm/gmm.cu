@@ -160,13 +160,11 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
 
         int threads0 = min(16 * 16, k);
         int blocks0 = (k + threads0 - 1) / threads0;
-		cout << threads0 << '\t' << blocks0 << endl;
         respConstKernel <<< blocks0, threads0 >>> (d_respect_const, d_mean, d_conv);
         checkCudaErrors(cudaDeviceSynchronize());
 //        cout << "gauss const " << endl << d_respect_const << endl;
         int threads1 = min(16 * 16, k);
         int blocks1 = rows * ((k + threads1 - 1) / threads1);
-		cout << threads1 << '\t' << blocks1 << endl;
         expectKernel <<< blocks1, threads1 >>>
                                    (d_respect, d_dtm, d_mean, d_conv, d_class_weight, d_respect_const);
         checkCudaErrors(cudaDeviceSynchronize());
@@ -260,20 +258,14 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
     d_conv.toHost(h_conv);
     d_class_weight.toHost(h_class_weight);
 
-	printf("finished itr...\n");
-
     return valid_itr;
 }
 
 
 int main(int argc, char* argv[]) {
-//    int k = atoi(argv[1]);
-//    int max_itr = atoi(argv[2]);
-//    int seed = atoi(argv[3]);
-	int k = 2;
-	int max_itr = 2;
-	int seed = 1003;
-    ifstream cin("/Users/dy/TextUtils/data/train/spamsms.dtm");
+    int k = atoi(argv[1]);
+    int max_itr = atoi(argv[2]);
+    int seed = atoi(argv[3]);
     int rows, cols, size;
     double sparsity, constructionCost;
     vector<double> data;
@@ -312,8 +304,7 @@ int main(int argc, char* argv[]) {
 //        cout << i << '\t' << d << endl;
         data.push_back(d);
     }
-	cin.close();
-	cout << "here." << endl;
+	cout << "DTM done." << endl;
 //
 //    rows = 2;
 //    cols = 4;
