@@ -21,7 +21,10 @@ class X
 public:
     X() { std::cout << "X::X()" << std::endl; }
     X( X const & ) { std::cout << "X::X( X const & )" << std::endl; }
-    X& operator=( X const & ) { std::cout << "X::operator=(X const &)" << std::endl; }
+    X& operator=( X const & ) { 
+		std::cout << "X::operator=(X const &)" << std::endl; 
+		return *this;
+	}
 };
 
 inline X f() {

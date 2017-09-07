@@ -4,7 +4,7 @@
 #include <Transpose.cu>
 #include <CudaUtils.cu>
 #include <CpuTimer.h>
-using namespace cutils;
+//using namespace cutils;
 
 int main() {
 	int numbytes = N * N * sizeof(float);

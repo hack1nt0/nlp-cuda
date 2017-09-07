@@ -27,7 +27,7 @@ DeviceDenseMatrix<T> class_weight, DeviceDenseMatrix<T> respConst) {
    /*
     * resp[d,k]       ~    w[k] * P(d|k) 
     * log(resp[d,k])  ~    log(w[k]) - 0.5 * ( M * log(2*PI) 
-    * + log(prob(conv[k])) + SUM_i { (dtm[d,i]-mean[k,i])^2 / conv[k,i] } )
+    * + log(prob(cov[k])) + SUM_i { (dtm[d,i]-mean[k,i])^2 / cov[k,i] } )
     *
     */
    T result = log(2. * 3.14) * mean.cols + respConst.at(k);
@@ -45,13 +45,13 @@ DeviceDenseMatrix<T> class_weight, DeviceDenseMatrix<T> respConst) {
 
 template <typename T>
 __global__
-void respConstKernel(DeviceDenseMatrix<T> respConst, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> conv) {
+void respConstKernel(DeviceDenseMatrix<T> respConst, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> cov) {
     int k = threadIdx.x + blockIdx.x * blockDim.x;
     if (k >= mean.rows) return;
     T result = 0.f;
     for (int i = 0; i < mean.cols; ++i) {
-        result += mean.at(k, i) / conv.at(k, i) * mean.at(k, i);
-        result += log(conv.at(k, i));
+        result += mean.at(k, i) / cov.at(k, i) * mean.at(k, i);
+        result += log(cov.at(k, i));
     }
 //    respConst.set(k,  result);
     respConst.at(k) = result;
@@ -97,7 +97,9 @@ void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, DeviceSparse
     }
 }
 
-void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned int k, unsigned int cols) {
+void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned int k, unsigned int cols, unsigned int seed) {
+    srand(seed);
+    rand();
     for (int i = 0; i < cols * k; ++i) {
         h_mean[i] = (double) rand() / RAND_MAX;
         h_conv[i] = (double) rand() / RAND_MAX * 50;
@@ -111,7 +113,7 @@ GmmModel gmm(const double* data, const int* index, const int* row_ptr,
                  unsigned int rows, unsigned int cols, unsigned int nnz,
                  unsigned int k, unsigned int max_itr, unsigned int seed) {
     GmmModel model(rows, cols, k, max_itr, -1, seed);
-    gmmInit(model.mean, model.conv, model.class_weight, k, cols);
+    gmmInit(model.mean, model.conv, model.class_weight, k, cols, seed);
     model.valid_itr = gmm(model.resp, model.mean, model.conv, model.class_weight, model.likelihood,
                           data, index, row_ptr,
                           rows, cols, nnz,
@@ -126,8 +128,6 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
                  unsigned int rows, unsigned int cols, unsigned int nnz,
                  unsigned int k, unsigned int max_itr, unsigned int seed,
                  double alpha, double beta) {
-    srand(seed);
-    rand();
     /*
      * normalize
      * todo norm2 or whitening?
@@ -160,11 +160,13 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
 
         int threads0 = min(16 * 16, k);
         int blocks0 = (k + threads0 - 1) / threads0;
+		cout << threads0 << '\t' << blocks0 << endl;
         respConstKernel <<< blocks0, threads0 >>> (d_respect_const, d_mean, d_conv);
         checkCudaErrors(cudaDeviceSynchronize());
 //        cout << "gauss const " << endl << d_respect_const << endl;
         int threads1 = min(16 * 16, k);
         int blocks1 = rows * ((k + threads1 - 1) / threads1);
+		cout << threads1 << '\t' << blocks1 << endl;
         expectKernel <<< blocks1, threads1 >>>
                                    (d_respect, d_dtm, d_mean, d_conv, d_class_weight, d_respect_const);
         checkCudaErrors(cudaDeviceSynchronize());
@@ -211,7 +213,7 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
         d_respect_col_major = ~d_respect;
         d_respect_col_major.rows = rows;
         d_respect_col_major.cols = k;
-        DeviceDenseMatrix<double>::cudaSparseMultiplyDense(tmp, 0.f, 1.f, d_dtm, false, d_respect_col_major, false);
+        DeviceDenseMatrix<double>::cudaSparseMultiplyDense(tmp, 0., 1., d_dtm, false, d_respect_col_major, false);
         tmp.reshape(k, cols);
         d_dtm = ~d_dtm;
         d_class_weight = maximum(d_class_weight, class_weight_smoothing); //todo
@@ -258,54 +260,60 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
     d_conv.toHost(h_conv);
     d_class_weight.toHost(h_class_weight);
 
+	printf("finished itr...\n");
+
     return valid_itr;
 }
 
 
 int main(int argc, char* argv[]) {
-    int k = atoi(argv[1]);
-    int max_itr = atoi(argv[2]);
-    int seed = atoi(argv[3]);
-
-    ifstream in("/Users/dy/TextUtils/data/train/spamsms.dtm");
+//    int k = atoi(argv[1]);
+//    int max_itr = atoi(argv[2]);
+//    int seed = atoi(argv[3]);
+	int k = 2;
+	int max_itr = 2;
+	int seed = 1003;
+    ifstream cin("/Users/dy/TextUtils/data/train/spamsms.dtm");
     int rows, cols, size;
     double sparsity, constructionCost;
     vector<double> data;
     vector<int> index;
     vector<int> row_ptr;
 
-    in >> rows;
-    in >> cols;
-    in >> size;
-    in >> sparsity;
-    in >> constructionCost;
+    cin >> rows;
+    cin >> cols;
+    cin >> size;
+    cin >> sparsity;
+    cin >> constructionCost;
     string word;
-    getline(in, word); // todo
+    getline(cin, word); // todo
     for (int i = 0; i < cols; ++i) {
-        getline(in, word);
+        getline(cin, word);
 //        cout << i << '\t' << word << endl;
     }
     double idf;
     for (int i = 0; i < cols; ++i) {
-        in >> idf;
+        cin >> idf;
     }
     for (int i = 0; i <= rows; ++i) {
         int d;
-        in >> d;
+        cin >> d;
 //        cout << i << '\t' << d << endl;
         row_ptr.push_back(d);
     }
     for (int i = 0; i < size; ++i) {
         int d;
-        in >> d;
+        cin >> d;
         index.push_back(d);
     }
     for (int i = 0; i < size; ++i) {
         double d;
-        in >> d;
+        cin >> d;
 //        cout << i << '\t' << d << endl;
         data.push_back(d);
     }
+	cin.close();
+	cout << "here." << endl;
 //
 //    rows = 2;
 //    cols = 4;

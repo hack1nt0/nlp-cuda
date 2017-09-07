@@ -154,27 +154,32 @@ public:
     SparseMatrix &operator=(const TransExpr<T, SparseMatrix<T> > &transExpr) {
         const SparseMatrix<T> &that = transExpr.lhs;
         if (this->data == that.data) { //todo
-            this->row_ptr = new int[this->cols + 1];
-            this->data = new T[this->nnz];
-            this->index = new int[this->nnz];
-            for (int i = 0; i < this->cols + 1; ++i) this->row_ptr[i] = 0;
-            for (int i = 0; i < that.nnz; ++i) {
-                this->row_ptr[that.index[i] + 1]++;
-            }
-            for (int i = 2; i < this->cols + 1; ++i) this->row_ptr[i] += this->row_ptr[i - 1];
-            for (int r = 0; r < that.rows; ++r) {
-                int from = that.row_ptr[r];
-                int to = that.row_ptr[r + 1];
-                for (int i = from; i < to; ++i) {
-                    int c = that.index[i];
-                    this->index[this->row_ptr[c]] = r;
-                    this->data[this->row_ptr[c]] = that.data[i];
-                    this->row_ptr[c]++;
-                }
-            }
-            for (int i = this->rows - 1; i > 0; --i) this->row_ptr[i] = this->row_ptr[i - 1];
-            this->row_ptr[0] = 0;
             swap(this->cols, this->rows);
+			this->row_ptr = new int[this->rows + 1];
+			this->index = new int[this->nnz];
+			this->data = new T[this->nnz];
+			memset(this->row_ptr, 0, sizeof(int) * (this->rows + 1));
+			for (int i = 0; i < that.rows; ++i) {
+				int from = that.row_ptr[i];
+				int to = that.row_ptr[i + 1];
+				for (int j = from; j < to; ++j) {
+					this->row_ptr[that.index[j] + 1]++;
+				}
+			}
+			for (int i = 1; i <= this->rows; ++i) 
+				this->row_ptr[i] += this->row_ptr[i - 1];
+			assert(this->row_ptr[this->rows] == this->nnz);
+			for (int i = 0; i < that.rows; ++i) {
+				int from = that.row_ptr[i];
+				int to = that.row_ptr[i + 1];
+				for (int j = from; j < to; ++j) {
+					int k = this->row_ptr[that.index[j]]++;
+					this->index[k] = i;
+					this->data[k] = that.data[j];
+				}
+			}
+			for (int i = this->rows; i > 0; --i) this->row_ptr[i] = this->row_ptr[i - 1];
+			this->row_ptr[0] = 0;
             delete[] that.data;
             delete[] that.index;
             delete[] that.row_ptr;
@@ -187,7 +192,7 @@ public:
             for (int i = 0; i < that.nnz; ++i) {
                 this->row_ptr[that.index[i] + 1]++;
             }
-            for (int i = 2; i < this->rows + 1; ++i) this->row_ptr[i] += this->row_ptr[i - 1];
+            for (int i = 1; i <= this->rows; ++i) this->row_ptr[i] += this->row_ptr[i - 1];
             if (this->nnz != that.nnz) {
                 delete[] this->data;
                 delete[] this->index;
@@ -204,7 +209,7 @@ public:
                     this->row_ptr[c]++;
                 }
             }
-            for (int i = this->rows - 1; i > 0; --i) this->row_ptr[i] = this->row_ptr[i - 1];
+            for (int i = this->rows; i > 0; --i) this->row_ptr[i] = this->row_ptr[i - 1];
             this->row_ptr[0] = 0;
             this->cols = that.rows;
             this->rows = that.cols;

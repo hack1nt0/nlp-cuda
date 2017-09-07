@@ -8,6 +8,8 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(nlp-cuda)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin/")
@@ -49,21 +51,23 @@ if(CUDA_FOUND)
   -gencode;arch=compute_35,code=sm_35;
   -gencode;arch=compute_20,code=sm_20;")
     endif(DARWIN)
-    if(WIN)
-        set(CUDA_NVCC_FLAGS "
-  -ccbin cl.exe;
-  -gencode;arch=compute_30,code=sm_30;
-  -gencode;arch=compute_35,code=sm_35;
-  -gencode;arch=compute_20,code=sm_20;")
-    endif(WIN)
+    if(WIN32)
+        set(CUDA_NVCC_FLAGS " -gencode arch=compute_30,code=sm_30 ")
+    endif(WIN32)
 
 
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)
-        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-Xcompiler -Wextra -lcublas -lcusparse")
-        set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-stdlib=libstdc++")
-
+        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} " -Xcompiler -Wextra -lcublas -lcusparse ")
+        set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -stdlib=libstdc++ ")
     endif (UNIX)
+    if (WIN32)
+        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -cudart static  -g -G")
+		message("cuda cxx flags:")
+		message (${CUDA_NVCC_FLAGS})
+#        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} " -lcublas -lcusparse ")
+
+    endif(WIN32)
 
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")
