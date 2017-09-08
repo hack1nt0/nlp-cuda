@@ -5,12 +5,15 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <CudaUtils.cu>
 #include <thrust/device_vector.h>
 #include <cmath>
 #include <fstream>
 #include <device_matrix.h>
+#include <document_term_matrix.h>
+#include <io.h>
 #include "gmm.h"
 
 using namespace std;
@@ -39,8 +42,7 @@ DeviceDenseMatrix<T> class_weight, DeviceDenseMatrix<T> respConst) {
        result += (data * data - 2. * data * mean.at(k, m)) / conv.at(k, m);
    }
    result = log(class_weight.at(k)) - .5 * result;
-//   resp.set(d, k, result);
-    resp.at(d, k) = result;
+   resp.at(d, k) = result;
 }
 
 template <typename T>
@@ -48,12 +50,11 @@ __global__
 void respConstKernel(DeviceDenseMatrix<T> respConst, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> cov) {
     int k = threadIdx.x + blockIdx.x * blockDim.x;
     if (k >= mean.rows) return;
-    T result = 0.f;
+    T result = 0;
     for (int i = 0; i < mean.cols; ++i) {
         result += mean.at(k, i) / cov.at(k, i) * mean.at(k, i);
         result += log(cov.at(k, i));
     }
-//    respConst.set(k,  result);
     respConst.at(k) = result;
 }
 
@@ -97,33 +98,38 @@ void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, DeviceSparse
     }
 }
 
-void gmmInit(double* h_mean, double* h_conv, double* h_class_weight, unsigned int k, unsigned int cols, unsigned int seed) {
+void gmmInit(double* h_mean, double* h_conv, double* h_class_weight,
+	unsigned int k, unsigned int cols, 
+	unsigned int seed, double beta) {
     srand(seed);
     rand();
     for (int i = 0; i < cols * k; ++i) {
         h_mean[i] = (double) rand() / RAND_MAX;
         h_conv[i] = (double) rand() / RAND_MAX * 50;
+		h_conv[i] = max(h_conv[i], beta);
     }
     for (int i = 0; i < k; ++i) {
         h_class_weight[i] = 1.0f / k;
     }
 }
 
-GmmModel gmm(const double* data, const int* index, const int* row_ptr,
-                 unsigned int rows, unsigned int cols, unsigned int nnz,
-                 unsigned int k, unsigned int max_itr, unsigned int seed) {
-    GmmModel model(rows, cols, k, max_itr, -1, seed);
-    gmmInit(model.mean, model.conv, model.class_weight, k, cols, seed);
-    model.valid_itr = gmm(model.resp, model.mean, model.conv, model.class_weight, model.likelihood,
-                          data, index, row_ptr,
-                          rows, cols, nnz,
-                          k, max_itr, seed, 1e-5, 1e-5);
-    return model;
+void gmm(GmmModel& model, DocumentTermMatrix& dtm, int max_itr) {
+    gmmInit(model.mean, model.conv, model.class_weight, model.k, model.cols, model.seed, model.beta);
+    vector<double> likelihood = gmm(model.resp, model.mean, model.conv, model.class_weight,
+                          dtm.csr->data, dtm.csr->index, dtm.csr->row_ptr,
+                           dtm.csr->rows, dtm.csr->cols, dtm.csr->nnz,
+                          model.k, max_itr, model.seed, model.alpha, model.beta);
+    double* old_likelihood = model.likelihood;
+    model.likelihood = new double[model.valid_itr + likelihood.size()];
+    memcpy(model.likelihood, old_likelihood, sizeof(double) * model.valid_itr);
+    memcpy(model.likelihood + model.valid_itr, likelihood.data(), sizeof(double) * likelihood.size());
+    model.valid_itr += likelihood.size();
+    delete[] old_likelihood;
 }
 
 
 //data may be changed
-unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class_weight, double* h_likelihood,
+vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class_weight,
                  const double* data, const int* index, const int* row_ptr,
                  unsigned int rows, unsigned int cols, unsigned int nnz,
                  unsigned int k, unsigned int max_itr, unsigned int seed,
@@ -151,6 +157,7 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
     DeviceDenseMatrix<double> tmp(cols, k);
 
     double pre_likelihood = -3.4e+38; //todo
+    vector<double> h_likelihood;
     GpuTimer gpuTimer;
 
     printf("Iteration\t(Average).Log.likelihood\tExpectation(s)\tMaximization(s)\n");
@@ -162,29 +169,23 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
         int blocks0 = (k + threads0 - 1) / threads0;
         respConstKernel <<< blocks0, threads0 >>> (d_respect_const, d_mean, d_conv);
         checkCudaErrors(cudaDeviceSynchronize());
-//        cout << "gauss const " << endl << d_respect_const << endl;
         int threads1 = min(16 * 16, k);
         int blocks1 = rows * ((k + threads1 - 1) / threads1);
         expectKernel <<< blocks1, threads1 >>>
                                    (d_respect, d_dtm, d_mean, d_conv, d_class_weight, d_respect_const);
         checkCudaErrors(cudaDeviceSynchronize());
-//        cout << "log d_respect" << endl << d_respect << endl;
         int threads2 = min(16 * 16, rows);
         int blocks2 = (rows + threads2 - 1) / threads2;
         normRespKernel <<< blocks2, threads2 >>> (d_respect, d_doc_likelihood);
         checkCudaErrors(cudaDeviceSynchronize());
-//        cout << "d_respect" << endl << d_respect << endl;
-//        cout << "d_doc_likelihood" << endl << d_doc_likelihood << endl;
 
 
         thrust::device_ptr<double> dev_ptr(d_doc_likelihood.data);
         double cur_likelihood = thrust::reduce(dev_ptr, dev_ptr + rows) / rows;
-        h_likelihood[valid_itr] = cur_likelihood;
-//        double min_likelihood = thrust::reduce(dev_ptr, dev_ptr + rows, -MIN_double, thrust::minimum<double>());
-//        cout << "min likelihood " << min_likelihood << endl;
         printf("%5d\t%30e\t%20.3f\t", valid_itr, cur_likelihood, gpuTimer.elapsed() / 1000);
 
         if (cur_likelihood != cur_likelihood || abs(cur_likelihood - pre_likelihood) <= 1e-4) break;
+        h_likelihood.push_back(cur_likelihood);
         pre_likelihood = cur_likelihood;
 
         //Maximization
@@ -258,7 +259,7 @@ unsigned int gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class
     d_conv.toHost(h_conv);
     d_class_weight.toHost(h_class_weight);
 
-    return valid_itr;
+    return h_likelihood;
 }
 
 
@@ -266,44 +267,8 @@ int main(int argc, char* argv[]) {
     int k = atoi(argv[1]);
     int max_itr = atoi(argv[2]);
     int seed = atoi(argv[3]);
-    int rows, cols, size;
-    double sparsity, constructionCost;
-    vector<double> data;
-    vector<int> index;
-    vector<int> row_ptr;
 
-    cin >> rows;
-    cin >> cols;
-    cin >> size;
-    cin >> sparsity;
-    cin >> constructionCost;
-    string word;
-    getline(cin, word); // todo
-    for (int i = 0; i < cols; ++i) {
-        getline(cin, word);
-//        cout << i << '\t' << word << endl;
-    }
-    double idf;
-    for (int i = 0; i < cols; ++i) {
-        cin >> idf;
-    }
-    for (int i = 0; i <= rows; ++i) {
-        int d;
-        cin >> d;
-//        cout << i << '\t' << d << endl;
-        row_ptr.push_back(d);
-    }
-    for (int i = 0; i < size; ++i) {
-        int d;
-        cin >> d;
-        index.push_back(d);
-    }
-    for (int i = 0; i < size; ++i) {
-        double d;
-        cin >> d;
-//        cout << i << '\t' << d << endl;
-        data.push_back(d);
-    }
+    DocumentTermMatrix dtm(std::cin);
 	cout << "DTM done." << endl;
 //
 //    rows = 2;
@@ -320,7 +285,8 @@ int main(int argc, char* argv[]) {
 //    data.push_back(10000);
 //    data.push_back(1);
 
-    gmm(data.data(), index.data(), row_ptr.data(), rows, cols, size, k, max_itr, seed);
+    GmmModel model(dtm.csr->rows, dtm.csr->cols, k, 0, seed, 1e-5, 1e-5);
+    gmm(model, dtm, max_itr);
 
 //
 //    cout << endl << endl;

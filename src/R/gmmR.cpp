@@ -19,17 +19,16 @@ Rcpp::List gmm(S4 dtm, int k, int max_itr, int seed, double alpha, double beta) 
     NumericMatrix mean(k, cols);
     NumericMatrix conv(k, cols);
     NumericVector class_weight(k);
-    NumericVector likelihood(max_itr);
-    gmmInit(mean.begin(), conv.begin(), class_weight.begin(), k, cols, seed);
-    gmm(resp.begin(), mean.begin(), conv.begin(), class_weight.begin(), likelihood.begin(),
-        data.begin(), index.begin(), row_ptr.begin(),
-        rows, cols, data.size(), k, max_itr, seed, alpha, beta);
+    gmmInit(mean.begin(), conv.begin(), class_weight.begin(), k, cols, seed, beta);
+    std::vector<double> append_likehood = gmm(resp.begin(), mean.begin(), conv.begin(), class_weight.begin(),
+                                              data.begin(), index.begin(), row_ptr.begin(),
+                                              rows, cols, data.size(), k, max_itr, seed, alpha, beta);
     return Rcpp::List::create(
             Rcpp::Named("resp") = resp,
             Rcpp::Named("mean") = mean,
             Rcpp::Named("conv") = conv,
             Rcpp::Named("class_weight") = class_weight,
-            Rcpp::Named("likelihood") = likelihood);
+            Rcpp::Named("likelihood") = append_likehood);
 }
 
 RcppExport SEXP gmm(SEXP dtmSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP seedSEXP, SEXP alphaSEXP, SEXP betaSEXP) {

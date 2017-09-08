@@ -6,7 +6,7 @@
 ############################################################################
 
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
-project(nlp-cuda)
+project(nlp-cuda CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -44,16 +44,16 @@ if(CUDA_FOUND)
     # whether to build x64.  We tell it to support most devices, though,
     # to make sure more people can easily run class code without knowing
     # about this compiler argument
-    if (DARWIN)
+    if (APPLE)
         set(CUDA_NVCC_FLAGS "
   -ccbin /usr/bin/clang;
   -gencode;arch=compute_30,code=sm_30;
   -gencode;arch=compute_35,code=sm_35;
   -gencode;arch=compute_20,code=sm_20;")
-    endif(DARWIN)
-    if(WIN32)
-        set(CUDA_NVCC_FLAGS " -gencode arch=compute_30,code=sm_30 ")
-    endif(WIN32)
+    endif(APPLE)
+#    if(WIN32)
+#        set(CUDA_NVCC_FLAGS " -gencode arch=compute_30,code=sm_30 ")
+#    endif(WIN32)
 
 
     # add -Wextra compiler flag for gcc compilations
@@ -61,13 +61,13 @@ if(CUDA_FOUND)
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} " -Xcompiler -Wextra -lcublas -lcusparse ")
         set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -stdlib=libstdc++ ")
     endif (UNIX)
-    if (WIN32)
-        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -cudart static  -g -G")
-		message("cuda cxx flags:")
-		message (${CUDA_NVCC_FLAGS})
-#        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} " -lcublas -lcusparse ")
-
-    endif(WIN32)
+#    if (win32)
+#        set(cuda_nvcc_flags "${cuda_nvcc_flags} -cudart static  -g -g")
+#		message("cuda cxx flags:")
+#		message (${cuda_nvcc_flags})
+##        set(cuda_nvcc_flags ${cuda_nvcc_flags} " -lcublas -lcusparse ")
+#
+#    endif(win32)
 
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")

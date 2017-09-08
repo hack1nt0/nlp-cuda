@@ -78,6 +78,12 @@ public:
 
     SparseMatrix() {}
 
+	SparseMatrix(T* data, int* index, int* row_ptr,
+		int rows, int cols, int nnz) : data(data), index(index), row_ptr(row_ptr),
+		rows(rows), cols(cols), nnz(nnz) {
+        this->is_root = false;
+    }
+
     virtual ~SparseMatrix() {
         if (is_root) {
             if (data != 0) {
@@ -86,6 +92,16 @@ public:
                 delete[] row_ptr;
             }
         }
+    }
+
+    SparseMatrix(int rows, int cols, int nnz) {
+        this->rows = rows;
+        this->cols = cols;
+        this->nnz = nnz;
+        this->row_ptr = new int[rows + 1];
+        this->index = new int[nnz];
+        this->data = new T[nnz];
+        this->is_root = true;
     }
 
     SparseMatrix(int rows, int cols, float density) {
