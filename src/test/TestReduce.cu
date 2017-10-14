@@ -1,6 +1,6 @@
 #include <iostream>
 #include <Array.h>
-#include <CudaUtils.cu>
+#include <cuda_utils.h>
 #include <CpuTimer.h>
 #include <thrust/reduce.h>
 #include <thrust/host_vector.h>

@@ -40,3 +40,4 @@ cmake-build-debug/
 .DS_Store
 .vs/
 *.json
+src/Eigen/

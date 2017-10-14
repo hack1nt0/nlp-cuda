@@ -6,6 +6,9 @@
 ############################################################################
 
 # collect source files
-include_directories("../kmeans")
 
-CUDA_ADD_EXECUTABLE(gmm main.cpp main.cu gmm.cu)
+
+#CUDA_ADD_EXECUTABLE(tsne main.cpp main.cu tsne.cu)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2 -msse ")
+CUDA_ADD_EXECUTABLE(tsne.cpu main.cpp tsne.cpp)

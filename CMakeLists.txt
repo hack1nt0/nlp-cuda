@@ -30,12 +30,18 @@ find_package(CUDA REQUIRED)
 link_libraries(${CUDA_cusparse_LIBRARY})
 link_libraries(${CUDA_CUBLAS_LIBRARIES})
 
-#find_package(TBB REQUIRED)
-#include_directories(${TBB_INCLUDE_DIRS})
-#link_libraries(${TBB_LIBRARIES} )
-
+find_package(TBB REQUIRED)
+include_directories(${TBB_INCLUDE_DIRS})
+link_libraries(${TBB_LIBRARIES} )
 
 include_directories(src/util)
+cuda_include_directories(src/util)
+include_directories(src/dist)
+include_directories(src/knn)
+include_directories(src/kmeans)
+include_directories(src/gmm)
+include_directories(src/tsne)
+include_directories(src)
 #include_directories(src/cppjieba/include)
 #include_directories(src/cppjieba/deps)
 
@@ -58,8 +64,8 @@ if(CUDA_FOUND)
 
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)
-        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} " -Xcompiler -Wextra -lcublas -lcusparse ")
-        set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -stdlib=libstdc++ ")
+        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wextra -lcublas -lcusparse")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ -O2 ")
     endif (UNIX)
 #    if (win32)
 #        set(cuda_nvcc_flags "${cuda_nvcc_flags} -cudart static  -g -g")
@@ -72,9 +78,19 @@ if(CUDA_FOUND)
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")
 
+    add_subdirectory (src/tsne)
+    add_subdirectory (src/dist)
     add_subdirectory (src/R)
+    add_subdirectory (src/kmeans)
     add_subdirectory (src/gmm)
     add_subdirectory (src/test)
 else(CUDA_FOUND)
     message("CUDA is not installed on this system.")
+endif()
+
+
+find_package( blaze )
+if( blaze_FOUND )
+    add_library( blaze_target INTERFACE )
+    target_link_libraries( blaze_target INTERFACE blaze::blaze )
 endif()

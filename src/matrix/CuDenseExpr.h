@@ -10,68 +10,14 @@
 #include <cassert>
 #include <cmath>
 #include <host_defines.h>
+#include "functors.h"
 using namespace std;
 
 //namespace cutils {
 
-template<typename T>
-class Add {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return a + b; }
-};
-
-template<typename T>
-class Mul {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return a * b; }
-};
-
-template<typename T>
-class Div {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return a / b; }
-};
-
-template<typename T>
-class Sub {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return a - b; }
-};
-
-template<typename T>
-class Pow {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return powf(a, b); }
-};
-
-template<typename T>
-class Max {
-public:
-    __device__ inline
-    static T apply(T a, T b) { return max(a, b); }
-};
-
-template<typename T>
-class Identity {
-public:
-    __device__ inline
-    static T apply(T a) { return a; }
-};
-
-template<typename T>
-class Neg {
-public:
-    __device__ inline
-    static T apply(T a) { return -a; }
-};
 
 template<typename T, typename ETYPE>
-class BaseExpr {
+class DenseExpr {
 public:
     inline const ETYPE& self(void) const {
         return *static_cast<const ETYPE *>(this);
@@ -79,7 +25,7 @@ public:
 };
 
 template <class OP, class LHS, typename T>
-struct UnaryExpr : public BaseExpr<T, UnaryExpr<OP, LHS, T> > {
+struct UnaryExpr : public DenseExpr<T, UnaryExpr<OP, LHS, T> > {
     LHS lhs;
 
     UnaryExpr(const LHS &lhs) : lhs(lhs) {}
@@ -95,8 +41,49 @@ struct UnaryExpr : public BaseExpr<T, UnaryExpr<OP, LHS, T> > {
     }
 };
 
+template <class LHS, typename T>
+UnaryExpr<Sqrt<T>, LHS, T> sqrt(const DenseExpr<T, LHS> &lhs) {
+    const LHS &e = lhs.self();
+    return UnaryExpr<Sqrt<T>, LHS, T>(e);
+}
+
+template <class LHS, typename T>
+UnaryExpr<Log<T>, LHS, T> log(const DenseExpr<T, LHS> &lhs) {
+    const LHS &e = lhs.self();
+    return UnaryExpr<Log<T>, LHS, T>(e);
+}
+
+template <class LHS, typename T>
+UnaryExpr<Log2<T>, LHS, T> log2(const DenseExpr<T, LHS> &lhs) {
+    const LHS &e = lhs.self();
+    return UnaryExpr<Log2<T>, LHS, T>(e);
+}
+
+template <class OP, class LHS, typename T>
+struct IntUnaryExpr : public DenseExpr<T, IntUnaryExpr<OP, LHS, T> > {
+    LHS lhs;
+
+    IntUnaryExpr(const LHS &lhs) : lhs(lhs) {}
+
+    __device__ __host__
+    inline int at(int r, int c) const {
+        return OP::apply(lhs.at(r, c));
+    }
+
+    __device__ __host__
+    inline int at(int i) const {
+        return OP::apply(lhs.at(i));
+    }
+};
+
+template <class LHS, typename T>
+IntUnaryExpr<Sign<T>, LHS, T> sign(const DenseExpr<T, LHS> &lhs) {
+    const LHS &e = lhs.self();
+    return IntUnaryExpr<Sign<T>, LHS, T>(e);
+}
+
 template <typename T, class LHS>
-struct TransExpr : public BaseExpr<T, TransExpr<T, LHS> > {
+struct TransExpr : public DenseExpr<T, TransExpr<T, LHS> > {
     LHS lhs;
 
     TransExpr(const LHS &lhs) : lhs(lhs) {}
@@ -109,7 +96,7 @@ struct TransExpr : public BaseExpr<T, TransExpr<T, LHS> > {
 
 template <class OP, class LHS, typename T>
 //struct ZipExpr : public BaseExpr<T, ZipExpr<OP, LHS, T> > {
-struct ZipExpr {
+struct ZipExpr : public DenseExpr<T, ZipExpr<OP, LHS, T> > {
     LHS lhs;
     int index;
     int rows;
@@ -143,19 +130,20 @@ struct ZipExpr {
         return result;
     }
 };
+
 template <class LHS, typename T>
-ZipExpr<Add<T>, LHS, T> sum(const BaseExpr<T, LHS> &lhs, int index) {
+ZipExpr<Add<T>, LHS, T> sum(const DenseExpr<T, LHS> &lhs, int index) {
     const LHS &e = lhs.self();
     return ZipExpr<Add<T>, LHS, T>(e, index, e.rows, e.cols, (T)0);
 };
 
 template <typename T, class LHS> inline
-TransExpr<T, LHS> operator~(const BaseExpr<T, LHS> &lhs) {
+TransExpr<T, LHS> operator~(const DenseExpr<T, LHS> &lhs) {
     return TransExpr<T, LHS>(lhs.self());
 };
 
 template <class OP, class LHS, class RHS, typename T>
-struct BinExpr : public BaseExpr<T, BinExpr<OP, LHS, RHS, T> > {
+struct BinExpr : public DenseExpr<T, BinExpr<OP, LHS, RHS, T> > {
     LHS lhs;
     RHS rhs;
 
@@ -173,17 +161,17 @@ struct BinExpr : public BaseExpr<T, BinExpr<OP, LHS, RHS, T> > {
 };
 
 template <typename T, class LHS, class RHS> inline
-BinExpr<Add<T>, LHS, RHS, T> operator+(const BaseExpr<T, LHS> &lhs, const BaseExpr<T, RHS> &rhs) {
+BinExpr<Add<T>, LHS, RHS, T> operator+(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
     return BinExpr<Add<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 template <typename T, class LHS, class RHS> inline
-BinExpr<Sub<T>, LHS, RHS, T> operator-(const BaseExpr<T, LHS> &lhs, const BaseExpr<T, RHS> &rhs) {
+BinExpr<Sub<T>, LHS, RHS, T> operator-(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
     return BinExpr<Sub<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 template <typename T>
-struct ConstViewer {
+struct ConstViewer : public DenseExpr<T, ConstViewer<T> > {
     T v;
     ConstViewer(T v) : v(v) {}
 
@@ -199,86 +187,81 @@ struct ConstViewer {
 };
 
 template <class LHS, typename T>
-BinExpr<Add<T>, LHS, ConstViewer<T>, T> operator+(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Add<T>, LHS, ConstViewer<T>, T> operator+(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Add<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
 template <class LHS, typename T>
-BinExpr<Sub<T>, LHS, ConstViewer<T>, T> operator-(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Sub<T>, LHS, ConstViewer<T>, T> operator-(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Sub<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
 template <class LHS, typename T>
-UnaryExpr<Neg<T>, LHS, T> operator-(const BaseExpr<T, LHS> &lhs) {
+UnaryExpr<Neg<T>, LHS, T> operator-(const DenseExpr<T, LHS> &lhs) {
     return UnaryExpr<Neg<T>, LHS, T>(lhs.self());
 };
 
 template <class LHS, typename T>
-BinExpr<Mul<T>, LHS, ConstViewer<T>, T> operator*(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Mul<T>, LHS, ConstViewer<T>, T> operator*(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Mul<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
 template <class LHS, class RHS, typename T>
-BinExpr<Mul<T>, LHS, RHS, T> operator*(const BaseExpr<T, LHS> &lhs, const BaseExpr<T, RHS> &rhs) {
+BinExpr<Mul<T>, LHS, RHS, T> operator*(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
     return BinExpr<Mul<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 template <class LHS, typename T>
-BinExpr<Div<T>, LHS, ConstViewer<T>, T> operator/(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Div<T>, LHS, ConstViewer<T>, T> operator/(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Div<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
 template <class LHS, class RHS, typename T>
-BinExpr<Div<T>, LHS, RHS, T> operator/(const BaseExpr<T, LHS> &lhs, const BaseExpr<T, RHS> &rhs) {
+BinExpr<Div<T>, LHS, RHS, T> operator/(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
     return BinExpr<Div<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 template <class LHS, typename T>
-BinExpr<Pow<T>, LHS, ConstViewer<T>, T> operator^(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Pow<T>, LHS, ConstViewer<T>, T> operator^(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Pow<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
 template <class LHS, class RHS, typename T>
-BinExpr<Max<T>, LHS, RHS, T> maximum(const BaseExpr<T, LHS> &lhs, const BaseExpr<T, RHS> &rhs) {
+BinExpr<Max<T>, LHS, RHS, T> maximum(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
     return BinExpr<Max<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 template <class LHS, typename T>
-BinExpr<Max<T>, LHS, ConstViewer<T>, T> maximum(const BaseExpr<T, LHS> &lhs, T rhs) {
+BinExpr<Max<T>, LHS, ConstViewer<T>, T> maximum(const DenseExpr<T, LHS> &lhs, T rhs) {
     return BinExpr<Max<T>, LHS, ConstViewer<T>, T>(lhs.self(), ConstViewer<T>(rhs));
 };
 
+template <class OP, class LHS, class RHS, typename T>
+struct BoolBinExpr : public DenseExpr<T, BoolBinExpr<OP, LHS, RHS, T> > {
+    LHS lhs;
+    RHS rhs;
 
-template <typename T>
-struct Random {
-    T from;
-    T to;
+    BoolBinExpr(const LHS &lhs, const RHS &rhs) : lhs(lhs), rhs(rhs) {}
 
-    Random(unsigned int seed, T from, T to) : from(from), to(to) {
-        assert(from < to);
-        srand(seed);
+    __device__ __host__
+    inline bool at(int r, int c) const {
+        return OP::apply(lhs.at(r, c), rhs.at(r, c));
     }
 
     __device__ __host__
-    inline T operator()(int i) const {
-        return from + rand() % (int)(to - from);
+    inline bool at(int i) const {
+        return OP::apply(lhs.at(i), rhs.at(i));
     }
+};
 
-    __device__ __host__
-    inline T operator[](int i) const {
-        return from + rand() % (int)(to - from);
-    }
+template <class LHS, class RHS, typename T>
+BoolBinExpr<Eq<T>, LHS, RHS, T> operator==(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
+    return BoolBinExpr<Eq<T>, LHS, RHS, T>(lhs.self(), rhs.self());
+};
 
-    __device__ __host__
-    inline T at(int i) const {
-        return from + rand() % (int)(to - from);
-    }
-
-    __device__ __host__
-    inline T at(int r, int c) const {
-        return from + rand() % (int)(to - from);
-    }
-
+template <class LHS, class RHS, typename T>
+BoolBinExpr<NEq<T>, LHS, RHS, T> operator!=(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
+    return BoolBinExpr<NEq<T>, LHS, RHS, T>(lhs.self(), rhs.self());
 };
 
 #endif //NLP_CUDA_EXPRESSION_TEMPLATES_H

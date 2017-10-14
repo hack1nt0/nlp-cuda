@@ -2,7 +2,6 @@
 find_package(R REQUIRED)
 include_directories(${R_INCLUDE_DIR})
 link_directories(${R_LIB_DIRS})
-include_directories("../gmm")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RCPP_CXX_FLAGS} -DNDEBUG")
 #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libstdc++ -Wl,-headerpad_max_install_names -undefined dynamic_lookup -single_module -multiply_defined suppress -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation")
@@ -18,5 +17,4 @@ if(UNIX AND NOT APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic-functions -Wl,-z,relro -lR")
 endif(UNIX AND NOT APPLE)
 
-CUDA_ADD_LIBRARY(gmm SHARED gmmR.cpp ../gmm/gmm.cu)
-
+CUDA_ADD_LIBRARY(rcudanlp SHARED gmmR.cpp kmeansR.cpp distR.cpp tsneR.cpp quadtreeR.cpp ../gmm/gmm.cu ../kmeans/kmeans.cu ../tsne/tsne.cu ../dist/SymmetricDistance.cu)

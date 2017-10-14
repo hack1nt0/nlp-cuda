@@ -1,17 +1,15 @@
-#include <iostream>
+
+#ifndef NLP_CUDA_CUDAUTILS_H
+#define NLP_CUDA_CUDAUTILS_H
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include <cassert>
-#include <iomanip>
 #include <Array.h>
 #include <cusparse.h>
-#include <typeinfo>
-#include <algorithm>
-//#include <cxxabi.h>
-
-#ifndef NLP_CUDA_CUDAUTILS_CU
-#define NLP_CUDA_CUDAUTILS_CU
+#include <cublas_v2.h>
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
 
 __device__
 void __syncthreads();
@@ -22,145 +20,123 @@ void __syncthreads();
 const int SHARED_MEM_PER_BLOCK = 49152; //bytes
 const int MAX_THREADS_PER_BLOCK = 1024;
 
-    class GpuTimer {
-        cudaEvent_t starT;
-        cudaEvent_t stopT;
-    public:
-        GpuTimer() {
-            cudaEventCreate(&starT);
-            cudaEventCreate(&stopT);
-        }
+class GpuTimer {
+    cudaEvent_t starT;
+    cudaEvent_t stopT;
+public:
+    GpuTimer() {
+        cudaEventCreate(&starT);
+        cudaEventCreate(&stopT);
+    }
 
-        virtual ~GpuTimer() {
-            cudaEventDestroy(starT);
-            cudaEventDestroy(stopT);
-        }
+    virtual ~GpuTimer() {
+        cudaEventDestroy(starT);
+        cudaEventDestroy(stopT);
+    }
 
-        void start() {
-            cudaEventRecord(starT, 0);
-        }
+    void start() {
+        cudaEventRecord(starT, 0);
+    }
 
-        void stop() {
-            cudaEventRecord(stopT, 0);
-            printf("gpu consumed %f ms\n", elapsed());
-        }
+    void stop() {
+        cudaEventRecord(stopT, 0);
+        printf("gpu consumed %f ms\n", elapsed());
+    }
 
-        float elapsed() {
-            cudaEventRecord(stopT, 0);
-            float elapsed;
-            cudaEventSynchronize(stopT);
-            cudaEventElapsedTime(&elapsed, starT, stopT);
-            return elapsed;
-        }
-    };
+    float elapsed() {
+        cudaEventRecord(stopT, 0);
+        float elapsed;
+        cudaEventSynchronize(stopT);
+        cudaEventElapsedTime(&elapsed, starT, stopT);
+        return elapsed;
+    }
+};
 
 #define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
 
 #define checkCusparseErrors(val) checkCusparse( (val), #val, __FILE__, __LINE__)
 
-    template<typename T>
-    void check(T err, const char *const func, const char *const file, const int line) {
-        if (err != cudaSuccess) {
-            std::cerr << "CUDA error at: " << file << ":" << line << std::endl;
-            std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+template<typename T>
+void check(T err, const char *const func, const char *const file, const int line) {
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA error at: " << file << ":" << line << std::endl;
+        std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+        exit(1);
+    }
+}
+
+template<typename T>
+void checkCusparse(T err, const char *const func, const char *const file, const int line) {
+    if (err != CUSPARSE_STATUS_SUCCESS) {
+        std::cerr << "CUDA Sparse error at: " << file << ":" << line << std::endl;
+        if (err == CUSPARSE_STATUS_ALLOC_FAILED)
+            std::cerr << "CUSPARSE_STATUS_ALLOC_FAILED " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_ARCH_MISMATCH)
+            std::cerr << "CUSPARSE_STATUS_ARCH_MISMATCH " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_EXECUTION_FAILED)
+            std::cerr << "CUSPARSE_STATUS_EXECUTION_FAILED " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_INTERNAL_ERROR)
+            std::cerr << "CUSPARSE_STATUS_INTERNAL_ERROR " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_INVALID_VALUE)
+            std::cerr << "CUSPARSE_STATUS_INVALID_VALUE " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_MAPPING_ERROR)
+            std::cerr << "CUSPARSE_STATUS_MAPPING_ERROR " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED)
+            std::cerr << "CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_NOT_INITIALIZED)
+            std::cerr << "CUSPARSE_STATUS_NOT_INITIALIZED " << func << std::endl;
+        else if (err == CUSPARSE_STATUS_ZERO_PIVOT)
+            std::cerr << "CUSPARSE_STATUS_ZERO_PIVOT " << func << std::endl;
+        else
+            std::cerr << "Unspecified error " << func << std::endl;
+        exit(1);
+    }
+}
+
+template<typename T>
+void checkResultsExact(const T *const gpu, const T *const ref, size_t numElem) {
+    //check that the GPU result matches the CPU result
+    for (size_t i = 0; i < numElem; ++i) {
+        if (abs(ref[i] - gpu[i]) > 0.01f) {
+            std::cerr << "Difference at pos " << i << std::endl;
+            //the + is magic to convert char to int without messing
+            //with other types
+            std::cerr << "Reference: " << std::setprecision(17) << +ref[i] <<
+                      "\nGPU      : " << +gpu[i] << std::endl;
             exit(1);
         }
     }
+}
 
-    template<typename T>
-    void checkCusparse(T err, const char *const func, const char *const file, const int line) {
-        if (err != CUSPARSE_STATUS_SUCCESS) {
-            std::cerr << "CUDA Sparse error at: " << file << ":" << line << std::endl;
-            if (err == CUSPARSE_STATUS_ALLOC_FAILED)
-                std::cerr << "CUSPARSE_STATUS_ALLOC_FAILED " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_ARCH_MISMATCH)
-                std::cerr << "CUSPARSE_STATUS_ARCH_MISMATCH " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_EXECUTION_FAILED)
-                std::cerr << "CUSPARSE_STATUS_EXECUTION_FAILED " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_INTERNAL_ERROR)
-                std::cerr << "CUSPARSE_STATUS_INTERNAL_ERROR " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_INVALID_VALUE)
-                std::cerr << "CUSPARSE_STATUS_INVALID_VALUE " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_MAPPING_ERROR)
-                std::cerr << "CUSPARSE_STATUS_MAPPING_ERROR " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED)
-                std::cerr << "CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_NOT_INITIALIZED)
-                std::cerr << "CUSPARSE_STATUS_NOT_INITIALIZED " << func << std::endl;
-            else if (err == CUSPARSE_STATUS_ZERO_PIVOT)
-                std::cerr << "CUSPARSE_STATUS_ZERO_PIVOT " << func << std::endl;
-            else
-                std::cerr << "Unspecified error " << func << std::endl;
+template<typename T>
+void checkResultsEps(const T *const gpu, const T *const ref, size_t numElem, double eps1, double eps2) {
+    assert(eps1 >= 0 && eps2 >= 0);
+    unsigned long long totalDiff = 0;
+    unsigned numSmallDifferences = 0;
+    for (size_t i = 0; i < numElem; ++i) {
+        //subtract smaller from larger in case of unsigned types
+        T smaller = std::min(ref[i], gpu[i]);
+        T larger = std::max(ref[i], gpu[i]);
+        T diff = larger - smaller;
+        if (diff > 0 && diff <= eps1) {
+            numSmallDifferences++;
+        } else if (diff > eps1) {
+            std::cerr << "Difference at pos " << +i << " exceeds tolerance of " << eps1 << std::endl;
+            std::cerr << "Reference: " << std::setprecision(17) << +ref[i] <<
+                      "\nGPU      : " << +gpu[i] << std::endl;
             exit(1);
         }
+        totalDiff += diff * diff;
     }
-
-    template<typename T>
-    void checkResultsExact(const T *const gpu, const T *const ref, size_t numElem) {
-        //check that the GPU result matches the CPU result
-        for (size_t i = 0; i < numElem; ++i) {
-            if (abs(ref[i] - gpu[i]) > 0.01f) {
-                std::cerr << "Difference at pos " << i << std::endl;
-                //the + is magic to convert char to int without messing
-                //with other types
-                std::cerr << "Reference: " << std::setprecision(17) << +ref[i] <<
-                          "\nGPU      : " << +gpu[i] << std::endl;
-                exit(1);
-            }
-        }
+    double percentSmallDifferences = (double) numSmallDifferences / (double) numElem;
+    if (percentSmallDifferences > eps2) {
+        std::cerr << "Total percentage of non-zero pixel difference between the two images exceeds " << 100.0 * eps2
+                  << "%" << std::endl;
+        std::cerr << "Percentage of non-zero pixel differences: " << 100.0 * percentSmallDifferences << "%"
+                  << std::endl;
+        exit(1);
     }
-
-    template<typename T>
-    void checkResultsEps(const T *const gpu, const T *const ref, size_t numElem, double eps1, double eps2) {
-        assert(eps1 >= 0 && eps2 >= 0);
-        unsigned long long totalDiff = 0;
-        unsigned numSmallDifferences = 0;
-        for (size_t i = 0; i < numElem; ++i) {
-            //subtract smaller from larger in case of unsigned types
-            T smaller = std::min(ref[i], gpu[i]);
-            T larger = std::max(ref[i], gpu[i]);
-            T diff = larger - smaller;
-            if (diff > 0 && diff <= eps1) {
-                numSmallDifferences++;
-            } else if (diff > eps1) {
-                std::cerr << "Difference at pos " << +i << " exceeds tolerance of " << eps1 << std::endl;
-                std::cerr << "Reference: " << std::setprecision(17) << +ref[i] <<
-                          "\nGPU      : " << +gpu[i] << std::endl;
-                exit(1);
-            }
-            totalDiff += diff * diff;
-        }
-        double percentSmallDifferences = (double) numSmallDifferences / (double) numElem;
-        if (percentSmallDifferences > eps2) {
-            std::cerr << "Total percentage of non-zero pixel difference between the two images exceeds " << 100.0 * eps2
-                      << "%" << std::endl;
-            std::cerr << "Percentage of non-zero pixel differences: " << 100.0 * percentSmallDifferences << "%"
-                      << std::endl;
-            exit(1);
-        }
-    }
-
-//Uses the autodesk method of image comparison
-//Note the the tolerance here is in PIXELS not a percentage of input pixels
-    template<typename T>
-    void
-    checkResultsAutodesk(const T *const gpu, const T *const ref, size_t numElem, double variance, size_t tolerance) {
-
-        size_t numBadPixels = 0;
-        for (size_t i = 0; i < numElem; ++i) {
-            T smaller = std::min(ref[i], gpu[i]);
-            T larger = std::max(ref[i], gpu[i]);
-            T diff = larger - smaller;
-            if (diff > variance)
-                ++numBadPixels;
-        }
-
-        if (numBadPixels > tolerance) {
-            std::cerr << "Too many bad pixels in the image." << numBadPixels << "/" << tolerance << std::endl;
-            exit(1);
-        }
-    }
-
+}
     template<class T, class BINARY_FUNCTION>
     __global__
     void reduceKernel(const T *arrayDevice, int from, int to, BINARY_FUNCTION op, T *maxDevice) {
@@ -356,15 +332,6 @@ const int MAX_THREADS_PER_BLOCK = 1024;
 
     }
 
-#define NUM_BANKS 32
-#define LOG_NUM_BANKS 5
-#ifdef ZERO_BANK_CONFLICTS
-#define CONFLICT_FREE_OFFSET(n) \
-    ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
-#else
-#define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_NUM_BANKS)
-#endif
-
     template<class T, class BINARY_FUNCTION>
     __global__
     void scanKernelX(const T *array, int from, int to, const T init, BINARY_FUNCTION op, T *prefix, T *blockSum) {
@@ -523,20 +490,30 @@ void fillKernel(T *target, ETYPE expression, int size) {
     target[idx] = expression.at(idx);
 };
 
-    template<typename T, typename ETYPE>
-    void fillDevice(T *target, const ETYPE &expression, int rows, int cols) {
-        dim3 threads(min(16, cols), min(16, rows));
-        dim3 blocks((cols + threads.x - 1) / threads.x, (rows + threads.y - 1) / threads.y);
-        fillKernel<<<blocks, threads>>>(target, expression, rows, cols);
-    };
+template<typename T, typename EType >
+void foreachDevice(T *target, const DenseExpr<T, EType>& expression, int rows, int cols) {
+    const EType& e = expression.self();
+    dim3 threads(min(16, cols), min(16, rows));
+    dim3 blocks((cols + threads.x - 1) / threads.x, (rows + threads.y - 1) / threads.y);
+    fillKernel<<<blocks, threads>>>(target, e, rows, cols);
+};
+
+template<typename T, typename EType >
+void foreachDevice(T *target, const DenseExpr<T, EType>& expression, int size) {
+    const EType& e = expression.self();
+    int threads = 16 * 16;
+    int blocks = (size + threads - 1) / threads;
+    fillKernel<<<blocks, threads>>>(target, e, size);
+};
 
 
-template<typename T, typename ETYPE>
-    void fillDevice(T *target, const ETYPE &expression, int size) {
-        int threads = 16 * 16;
-        int blocks = (size + threads - 1) / threads;
-        fillKernel<<<blocks, threads>>>(target, expression, size);
-    };
+template<typename T, typename EType >
+void foreachDevice(T *target, const SparExpr<T, EType>& expression, int size) {
+    const EType& e = expression.self();
+    int threads = 16 * 16;
+    int blocks = (size + threads - 1) / threads;
+    fillKernel<<<blocks, threads>>>(target, e, size);
+};
 
 template<typename T, class F>
 __global__
@@ -636,7 +613,6 @@ void transposeDevice(Matrix &matrix) {
     transposeKernel<<<blocks, threads>>>(matrix.data, matrix.rows, matrix.cols);
 }
 
+#endif
 //}
 
-
-#endif

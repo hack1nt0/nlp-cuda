@@ -3,7 +3,7 @@
 //
 
 #include <iostream>
-#include <device_matrix.h>
+#include <matrix/CuSparseMatrix.h>
 #include <vector>
 using namespace std;
 //using namespace cutils;

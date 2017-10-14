@@ -1,8 +1,8 @@
 //
 // Created by DY on 17-6-21.
 //
-#include <Transpose.cu>
-#include <CudaUtils.cu>
+#include <matrix/transpose.cuh>
+#include <cuda_utils.h>
 #include <CpuTimer.h>
 //using namespace cutils;
 

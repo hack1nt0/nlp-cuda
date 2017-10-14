@@ -6,6 +6,5 @@
 ############################################################################
 
 # collect source files
-include_directories("../kmeans")
 
-CUDA_ADD_EXECUTABLE(gmm main.cpp main.cu gmm.cu)
+CUDA_ADD_EXECUTABLE(kmeans main.cpp main.cu kmeans.cu)

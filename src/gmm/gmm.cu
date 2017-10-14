@@ -1,20 +1,22 @@
 //
 // Created by DY on 17-6-18.
 //
+#ifndef NLP_CUDA_GMM_CU
+#define NLP_CUDA_GMM_CU
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
 #include <algorithm>
 #include <vector>
-#include <CudaUtils.cu>
+#include <cuda_common_headers.cu>
 #include <thrust/device_vector.h>
 #include <cmath>
 #include <fstream>
-#include <device_matrix.h>
-#include <document_term_matrix.h>
-#include <io.h>
+#include <matrix/CuSparseMatrix.h>
+#include <ds/io.h>
 #include "gmm.h"
+#include <kmeans.h>
 
 using namespace std;
 //using namespace cutils;
@@ -63,15 +65,15 @@ __global__
 void normRespKernel(DeviceDenseMatrix<T> resp, DeviceDenseMatrix<T> logLikelihood) {
     int d = threadIdx.x + blockIdx.x * blockDim.x;
     if (d >= resp.rows) return;
-    double maxLogResp = -3.4e+38;
+    T maxLogResp = -3.4e+38;
     for (int i = 0; i < resp.cols; ++i) {
         maxLogResp = max(maxLogResp, resp.at(d, i));
     }
-    double sumExp = 0.f;
+    T sumExp = 0.;
     for (int i = 0; i < resp.cols; ++i) {
         sumExp += exp(resp.at(d, i) - maxLogResp);
     }
-    double logSumExp = maxLogResp + log(sumExp);
+    T logSumExp = maxLogResp + log(sumExp);
     logLikelihood.set(d, logSumExp);
     for (int i = 0; i < resp.cols; ++i) {
 //        resp.set(d, i, exp(resp.at(d, i) - logSumExp));
@@ -82,7 +84,7 @@ void normRespKernel(DeviceDenseMatrix<T> resp, DeviceDenseMatrix<T> logLikelihoo
 template <typename T>
 __global__
 void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, DeviceSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean,
-               DeviceDenseMatrix<T> class_weight, double smoothing) {
+               DeviceDenseMatrix<T> class_weight, T smoothing) {
     int k = threadIdx.x;
     if (k >= var.rows) return;
     for (int r = 0; r < dtm.rows; ++r) {
@@ -98,66 +100,48 @@ void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, DeviceSparse
     }
 }
 
-void gmmInit(double* h_mean, double* h_conv, double* h_class_weight,
-	unsigned int k, unsigned int cols, 
-	unsigned int seed, double beta) {
+template <typename T>
+void gmmInit(T* h_mean, T* h_covar, T* h_class_weight,
+             const T* data, const int* index, const int* row_ptr,
+             int rows, int cols, int nnz,
+             unsigned int k, unsigned int seed, T beta) {
+    initKmeans(h_mean, k, data, index, row_ptr, rows, cols, nnz, seed);
     srand(seed);
-    rand();
     for (int i = 0; i < cols * k; ++i) {
-        h_mean[i] = (double) rand() / RAND_MAX;
-        h_conv[i] = (double) rand() / RAND_MAX * 50;
-		h_conv[i] = max(h_conv[i], beta);
+        h_covar[i] = (T) rand() / RAND_MAX;
+		h_covar[i] = max(h_covar[i], beta);
     }
     for (int i = 0; i < k; ++i) {
         h_class_weight[i] = 1.0f / k;
     }
 }
 
-void gmm(GmmModel& model, DocumentTermMatrix& dtm, int max_itr) {
-    gmmInit(model.mean, model.conv, model.class_weight, model.k, model.cols, model.seed, model.beta);
-    vector<double> likelihood = gmm(model.resp, model.mean, model.conv, model.class_weight,
-                          dtm.csr->data, dtm.csr->index, dtm.csr->row_ptr,
-                           dtm.csr->rows, dtm.csr->cols, dtm.csr->nnz,
-                          model.k, max_itr, model.seed, model.alpha, model.beta);
-    double* old_likelihood = model.likelihood;
-    model.likelihood = new double[model.valid_itr + likelihood.size()];
-    memcpy(model.likelihood, old_likelihood, sizeof(double) * model.valid_itr);
-    memcpy(model.likelihood + model.valid_itr, likelihood.data(), sizeof(double) * likelihood.size());
-    model.valid_itr += likelihood.size();
-    delete[] old_likelihood;
-}
-
-
-//data may be changed
-vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_class_weight,
-                 const double* data, const int* index, const int* row_ptr,
+template <typename T>
+vector<T> gmm(T* h_resp, T* h_mean, T* h_covar, T* h_class_weight,
+                 const T* data, const int* index, const int* row_ptr,
                  unsigned int rows, unsigned int cols, unsigned int nnz,
                  unsigned int k, unsigned int max_itr, unsigned int seed,
-                 double alpha, double beta) {
-    /*
-     * normalize
-     * todo norm2 or whitening?
-     */
-    double class_weight_smoothing = alpha;
-    double variance_smoothing = beta;
-    DeviceSparseMatrix<double> d_dtm(data, index, row_ptr, rows, cols, nnz);
-    DeviceSparseMatrix<double> d_dtm_pow_2(data, index, row_ptr, rows, cols, nnz);
+                 T alpha, T beta) {
+    T class_weight_smoothing = alpha;
+    T variance_smoothing = beta;
+    DeviceSparseMatrix<T> d_dtm(data, index, row_ptr, rows, cols, nnz);
+    DeviceSparseMatrix<T> d_dtm_pow_2(data, index, row_ptr, rows, cols, nnz);
     d_dtm_pow_2 = d_dtm_pow_2 ^ 2.;
     d_dtm_pow_2 = ~d_dtm_pow_2;
 
-    DeviceDenseMatrix<double> d_mean(h_mean, k, cols);
-    DeviceDenseMatrix<double> d_conv(h_conv, k, cols);
-    DeviceDenseMatrix<double> d_conv_tmp(k, cols);
-    DeviceDenseMatrix<double> d_respect(rows, k);
-    DeviceDenseMatrix<double> d_respect_const(1, k);
-    DeviceDenseMatrix<double> d_respect_col_major(rows, k);
-    DeviceDenseMatrix<double> d_class_weight(h_class_weight, k, 1);
-    DeviceDenseMatrix<double> d_doc_likelihood(k, 1);
+    DeviceDenseMatrix<T> d_mean(h_mean, k, cols);
+    DeviceDenseMatrix<T> d_covar(h_covar, k, cols);
+    DeviceDenseMatrix<T> d_conv_tmp(k, cols);
+    DeviceDenseMatrix<T> d_respect(rows, k);
+    DeviceDenseMatrix<T> d_respect_const(1, k);
+    DeviceDenseMatrix<T> d_respect_col_major(rows, k);
+    DeviceDenseMatrix<T> d_class_weight(h_class_weight, k, 1);
+    DeviceDenseMatrix<T> d_doc_likelihood(k, 1);
 
-    DeviceDenseMatrix<double> tmp(cols, k);
+    DeviceDenseMatrix<T> tmp(cols, k);
 
-    double pre_likelihood = -3.4e+38; //todo
-    vector<double> h_likelihood;
+    T pre_likelihood = -3.4e+38; //todo
+    vector<T> h_likelihood;
     GpuTimer gpuTimer;
 
     printf("Iteration\t(Average).Log.likelihood\tExpectation(s)\tMaximization(s)\n");
@@ -167,12 +151,12 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
 
         int threads0 = min(16 * 16, k);
         int blocks0 = (k + threads0 - 1) / threads0;
-        respConstKernel <<< blocks0, threads0 >>> (d_respect_const, d_mean, d_conv);
+        respConstKernel <<< blocks0, threads0 >>> (d_respect_const, d_mean, d_covar);
         checkCudaErrors(cudaDeviceSynchronize());
         int threads1 = min(16 * 16, k);
         int blocks1 = rows * ((k + threads1 - 1) / threads1);
         expectKernel <<< blocks1, threads1 >>>
-                                   (d_respect, d_dtm, d_mean, d_conv, d_class_weight, d_respect_const);
+                                   (d_respect, d_dtm, d_mean, d_covar, d_class_weight, d_respect_const);
         checkCudaErrors(cudaDeviceSynchronize());
         int threads2 = min(16 * 16, rows);
         int blocks2 = (rows + threads2 - 1) / threads2;
@@ -180,8 +164,8 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
         checkCudaErrors(cudaDeviceSynchronize());
 
 
-        thrust::device_ptr<double> dev_ptr(d_doc_likelihood.data);
-        double cur_likelihood = thrust::reduce(dev_ptr, dev_ptr + rows) / rows;
+        thrust::device_ptr<T> dev_ptr(d_doc_likelihood.data);
+        T cur_likelihood = thrust::reduce(dev_ptr, dev_ptr + rows) / rows;
         printf("%5d\t%30e\t%20.3f\t", valid_itr, cur_likelihood, gpuTimer.elapsed() / 1000);
 
         if (cur_likelihood != cur_likelihood || abs(cur_likelihood - pre_likelihood) <= 1e-4) break;
@@ -212,7 +196,7 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
         d_respect_col_major = ~d_respect;
         d_respect_col_major.rows = rows;
         d_respect_col_major.cols = k;
-        DeviceDenseMatrix<double>::cudaSparseMultiplyDense(tmp, 0., 1., d_dtm, false, d_respect_col_major, false);
+        DeviceDenseMatrix<T>::cudaSparseMultiplyDense(tmp, 0., 1., d_dtm, false, d_respect_col_major, false);
         tmp.reshape(k, cols);
         d_dtm = ~d_dtm;
         d_class_weight = maximum(d_class_weight, class_weight_smoothing); //todo
@@ -230,12 +214,12 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
 //        d_conv += tmp;
 //        d_conv = d_conv / d_class_weight + variance_smoothing;
 
-        d_conv = tmp * tmp / d_class_weight;
+        d_covar = tmp * tmp / d_class_weight;
         tmp.reshape(cols, k);
-        DeviceDenseMatrix<double>::cudaSparseMultiplyDense(tmp, 0.f, 1.f, d_dtm_pow_2, false, d_respect_col_major, false);
+        DeviceDenseMatrix<T>::cudaSparseMultiplyDense(tmp, 0.f, 1.f, d_dtm_pow_2, false, d_respect_col_major, false);
         tmp.reshape(k, cols);
-        d_conv = tmp / d_class_weight - d_conv / d_class_weight;
-        d_conv = maximum(d_conv, variance_smoothing);
+        d_covar = tmp / d_class_weight - d_covar / d_class_weight;
+        d_covar = maximum(d_covar, variance_smoothing);
 
 //        int varKernelThreads = min(16 * 16, k);
 //        int varKernelBlocks = (k + varKernelThreads - 1) / varKernelThreads;
@@ -247,8 +231,8 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
 //        thrust::device_ptr<double> dev_ptr3(d_conv.data);
 //        cout << " min var " << thrust::reduce(dev_ptr3, dev_ptr3 + k * cols, -MIN_double, thrust::minimum<double>());
 
-        thrust::device_ptr<double> tmp_ptr(d_class_weight.data);
-        double sum_class_weight = thrust::reduce(tmp_ptr, tmp_ptr + k);
+        thrust::device_ptr<T> tmp_ptr(d_class_weight.data);
+        T sum_class_weight = thrust::reduce(tmp_ptr, tmp_ptr + k);
         d_class_weight /= sum_class_weight;
 
         printf("%10.3f\n", gpuTimer.elapsed() / 1000.);
@@ -256,81 +240,20 @@ vector<double> gmm(double* h_resp, double* h_mean, double* h_conv, double* h_cla
 
     d_respect.toHost(h_resp);
     d_mean.toHost(h_mean);
-    d_conv.toHost(h_conv);
+    d_covar.toHost(h_covar);
     d_class_weight.toHost(h_class_weight);
 
     return h_likelihood;
 }
 
+template void gmmInit<double>(double* h_mean, double* h_covar, double* h_class_weight,
+                                 const double* data, const int* index, const int* row_ptr,
+                                 int rows, int cols, int nnz,
+                                 unsigned int k, unsigned int seed, double beta);
 
-int main(int argc, char* argv[]) {
-    int k = atoi(argv[1]);
-    int max_itr = atoi(argv[2]);
-    int seed = atoi(argv[3]);
-
-    DocumentTermMatrix dtm(std::cin);
-	cout << "DTM done." << endl;
-//
-//    rows = 2;
-//    cols = 4;
-//    row_ptr.push_back(0);
-//    row_ptr.push_back(2);
-//    row_ptr.push_back(4);
-//    index.push_back(0);
-//    index.push_back(1);
-//    index.push_back(2);
-//    index.push_back(3);
-//    data.push_back(10000);
-//    data.push_back(1);
-//    data.push_back(10000);
-//    data.push_back(1);
-
-    GmmModel model(dtm.csr->rows, dtm.csr->cols, k, 0, seed, 1e-5, 1e-5);
-    gmm(model, dtm, max_itr);
-
-//
-//    cout << endl << endl;
-//    double dtm[2][2] =  {{0.f,   1.f},
-//                       {0.f,    1.f}};
-//    double mean[2][2] = {{
-//                                0.000000e+00,2.886728e+01
-//                        },
-//                        {
-//                                0.000000e+00,9.999949e-01
-//                        }};
-//    double resp[2][2] = {{
-//                                1.731565e-02,9.826841e-01
-//                        },
-//                        {
-//                                9.826841e-01,9.826841e-01
-//                        }};
-//    double class_w[2] = {
-//            3.464129e-02,
-//            1.965378e+00
-//    };
-//
-//    double tmp[2][2];
-//    for (int k = 0; k < 2; ++k) {
-//        for (int m = 0; m < 2; ++m) {
-//            tmp[k][m] = 0.f;
-//            for (int d = 0; d < 2; ++d) tmp[k][m] += dtm[d][m] * resp[d][k];
-//            printf("%e\t", tmp[k][m]);
-//        }
-//        cout << endl;
-//    }
-//    cout << endl;
-//    double var[2][2];
-//    for (int k = 0; k < 2; ++k) {
-//        for (int m = 0; m < 2; ++m)  {
-//            var[k][m] = 0.f;
-//            for (int d = 0; d < 2; ++d) var[k][m] += resp[d][k] * dtm[d][m] * dtm[d][m];
-//            for (int d = 0; d < 2; ++d) var[k][m] += resp[d][k] * powf(mean[k][m], 2.f);
-//            for (int d = 0; d < 2; ++d) var[k][m] -= resp[d][k] * dtm[d][m] * mean[k][m] * 2.f;
-//            var[k][m] = var[k][m] / class_w[k] + 1e-5f;
-//            printf("%e\t", var[k][m]);
-//        }
-//        cout << endl;
-//    }
-    return 0;
-}
-
+template vector<double> gmm(double* h_resp, double* h_mean, double* h_covar, double* h_class_weight,
+                   const double* data, const int* index, const int* row_ptr,
+                   unsigned int rows, unsigned int cols, unsigned int nnz,
+                   unsigned int k, unsigned int max_itr, unsigned int seed,
+                   double alpha, double beta);
+#endif
