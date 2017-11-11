@@ -48,7 +48,7 @@ Rcpp::List kmeans(S4 dtm, int k, int max_itr, int seed, int topics) {
             Rcpp::Named("mean") = mean,
             Rcpp::Named("capacity") = capacity,
             Rcpp::Named("belong") = belong,
-            Rcpp::Named("dist") = dist,
+            Rcpp::Named("knn") = dist,
             Rcpp::Named("topics") = topicMatix);
 }
 

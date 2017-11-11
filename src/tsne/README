@@ -1,0 +1,12 @@
+# Cannot reach the target Perplexity
+
+Avoid nosense operation like log(exp(x)), and avoid
+log(0).
+
+# The KL-diverse increasing instead of decreasing
+
+Bug in implementation, for instance, not re-initialization 
+some accumulated variables.
+
+# Converge so slowly
+

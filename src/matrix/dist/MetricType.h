@@ -1,0 +1,10 @@
+//
+// Created by DY on 17-11-6.
+//
+
+#ifndef NLP_CUDA_METRICTYPE_H
+#define NLP_CUDA_METRICTYPE_H
+
+enum MetricType {EUCLIDEAN, COSINE_SIMILARITY};
+
+#endif //NLP_CUDA_METRICTYPE_H

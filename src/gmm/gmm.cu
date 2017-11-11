@@ -9,11 +9,11 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
-#include <cuda_common_headers.cu>
+#include <cu_common_headers.cu>
 #include <thrust/device_vector.h>
 #include <cmath>
 #include <fstream>
-#include <matrix/CuSparseMatrix.h>
+#include <matrix/CuSparseMatrix.cu>
 #include <ds/io.h>
 #include "gmm.h"
 #include <kmeans.h>
@@ -23,7 +23,7 @@ using namespace std;
 
 template <typename T>
 __global__
-void expectKernel(DeviceDenseMatrix<T> resp, DeviceSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> conv,
+void expectKernel(DeviceDenseMatrix<T> resp, CuSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> conv,
 DeviceDenseMatrix<T> class_weight, DeviceDenseMatrix<T> respConst) {
    int idx = threadIdx.x + blockIdx.x * blockDim.x;
    if (idx >= resp.rows * resp.cols) return;
@@ -83,7 +83,7 @@ void normRespKernel(DeviceDenseMatrix<T> resp, DeviceDenseMatrix<T> logLikelihoo
 
 template <typename T>
 __global__
-void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, DeviceSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean,
+void varKernel(DeviceDenseMatrix<T> var, DeviceDenseMatrix<T> resp, CuSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean,
                DeviceDenseMatrix<T> class_weight, T smoothing) {
     int k = threadIdx.x;
     if (k >= var.rows) return;

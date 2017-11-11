@@ -7,15 +7,15 @@
 
 #include "kmeans.h"
 #include <common_headers.h>
-#include <cuda_common_headers.cu>
-#include "matrix/CuSparseMatrix.h"
+#include <cu_common_headers.cu>
+#include "matrix/CuSparseMatrix.cu"
 #include <CpuTimer.h>
 
 using namespace std;
 
 template <typename T>
 __global__
-void calculateDist(DeviceDenseMatrix<T> dist, DeviceSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> distConst) {
+void calculateDist(DeviceDenseMatrix<T> dist, CuSparseMatrix<T> dtm, DeviceDenseMatrix<T> mean, DeviceDenseMatrix<T> distConst) {
     int tidx = threadIdx.x + blockDim.x * blockIdx.x;
     int di = tidx / dist.cols;
     int ki = tidx % dist.cols;

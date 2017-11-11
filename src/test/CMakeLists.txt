@@ -7,23 +7,25 @@
 
 # collect source files
 
-set(CMAKE_CXX_FLAGS "-mavx2 -std=c++11 -stdlib=libc++")
+set(CMAKE_CXX_FLAGS " -fopenmp -O2 -std=c++11 -stdlib=libc++")
 
-ADD_EXECUTABLE(eigen eigen.cpp)
+CUDA_ADD_EXECUTABLE(omp testOpenMP.cpp)
 
-ADD_EXECUTABLE(blaze blaze.cpp)
-
-ADD_EXECUTABLE(test-cpp TestCPP.cpp)
-
-CUDA_ADD_EXECUTABLE(test-tbb TestTBB.cpp)
-#target_link_libraries(test-tbb tbb)
-
-CUDA_ADD_EXECUTABLE(test-scan main.cpp TestScan.cu)
-CUDA_ADD_EXECUTABLE(test-reduce main.cpp TestReduce.cu)
-CUDA_ADD_EXECUTABLE(test-transpose main.cpp TestTranspose.cu)
-
-CUDA_ADD_EXECUTABLE(test-matrix main.cpp TestMatrix.cu)
-
-ADD_EXECUTABLE(kdtree kdtree.cpp)
-
-ADD_EXECUTABLE(quadtree quadtree.cpp)
+#ADD_EXECUTABLE(eigen eigen.cpp)
+#
+#ADD_EXECUTABLE(blaze blaze.cpp)
+#
+#ADD_EXECUTABLE(test-cpp TestCPP.cpp)
+#
+#CUDA_ADD_EXECUTABLE(test-tbb TestTBB.cpp)
+##target_link_libraries(test-tbb tbb)
+#
+#CUDA_ADD_EXECUTABLE(test-scan main.cpp TestScan.cu)
+#CUDA_ADD_EXECUTABLE(test-reduce main.cpp TestReduce.cu)
+CUDA_ADD_EXECUTABLE(transpose main.cpp TestTranspose.cu)
+#
+#CUDA_ADD_EXECUTABLE(test-matrix main.cpp TestMatrix.cu)
+#
+#ADD_EXECUTABLE(kdtree kdtree.cpp)
+#
+#ADD_EXECUTABLE(quadtree quadtree.cpp)

@@ -14,17 +14,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin/")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin/")
-#set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
-
-#if (UNIX)
-#    set (CMAKE_CXX_COMPILER "/usr/local/opt/llvm/bin/clang")
-#    #link_directories(/usr/local/opt/llvm/include)
-#    set(CMAKE_CXX_FLAGS "-I/usr/local/opt/llvm/include -L/usr/local/opt/llvm/util -Wl,-rpath,/usr/local/opt/llvm/util")
-#endif()
-
-#find_package(OpenCV REQUIRED)
-#link_libraries(${OpenCV_LIBS} )
 
 find_package(CUDA REQUIRED)
 link_libraries(${CUDA_cusparse_LIBRARY})
@@ -34,63 +23,40 @@ find_package(TBB REQUIRED)
 include_directories(${TBB_INCLUDE_DIRS})
 link_libraries(${TBB_LIBRARIES} )
 
-include_directories(src/util)
-cuda_include_directories(src/util)
-include_directories(src/dist)
-include_directories(src/knn)
-include_directories(src/kmeans)
-include_directories(src/gmm)
-include_directories(src/tsne)
-include_directories(src)
-#include_directories(src/cppjieba/include)
-#include_directories(src/cppjieba/deps)
+# for OpenMP
+if (APPLE)
+    include_directories(/usr/local/Cellar/llvm/4.0.0_1/lib/clang/4.0.0/include/omp.h)
+    link_directories(/usr/local/Cellar/llvm/4.0.0_1/lib)
+endif(APPLE)
+find_package(OPENMP REQUIRED)
+
 
 if(CUDA_FOUND)
-    # compared to class settings, we let NVidia's FindCUDA CMake detect
-    # whether to build x64.  We tell it to support most devices, though,
-    # to make sure more people can easily run class code without knowing
-    # about this compiler argument
     if (APPLE)
-        set(CUDA_NVCC_FLAGS "
-  -ccbin /usr/bin/clang;
-  -gencode;arch=compute_30,code=sm_30;
-  -gencode;arch=compute_35,code=sm_35;
-  -gencode;arch=compute_20,code=sm_20;")
+        set(CUDA_NVCC_FLAGS "-ccbin /usr/bin/clang")
     endif(APPLE)
-#    if(WIN32)
-#        set(CUDA_NVCC_FLAGS " -gencode arch=compute_30,code=sm_30 ")
-#    endif(WIN32)
-
-
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)
         set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wextra -lcublas -lcusparse")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ -O2 ")
+        set(CMAKE_CXX_FLAGS "-stdlib=libstdc++ ")
     endif (UNIX)
-#    if (win32)
-#        set(cuda_nvcc_flags "${cuda_nvcc_flags} -cudart static  -g -g")
-#		message("cuda cxx flags:")
-#		message (${cuda_nvcc_flags})
-##        set(cuda_nvcc_flags ${cuda_nvcc_flags} " -lcublas -lcusparse ")
-#
-#    endif(win32)
-
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")
 
-    add_subdirectory (src/tsne)
-    add_subdirectory (src/dist)
-    add_subdirectory (src/R)
-    add_subdirectory (src/kmeans)
-    add_subdirectory (src/gmm)
-    add_subdirectory (src/test)
 else(CUDA_FOUND)
     message("CUDA is not installed on this system.")
 endif()
 
+include_directories(src/util)
+include_directories(src)
 
-find_package( blaze )
-if( blaze_FOUND )
-    add_library( blaze_target INTERFACE )
-    target_link_libraries( blaze_target INTERFACE blaze::blaze )
-endif()
+add_subdirectory (src/optimizer)
+add_subdirectory (src/java)
+add_subdirectory (src/matrix)
+add_subdirectory (src/matrix/dist)
+add_subdirectory (src/tsne)
+add_subdirectory (src/knn)
+add_subdirectory (src/R)
+add_subdirectory (src/kmeans)
+add_subdirectory (src/gmm)
+add_subdirectory (src/test)

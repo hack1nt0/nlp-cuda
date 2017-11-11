@@ -4,46 +4,38 @@
 
 #include <iostream>
 #include <vector>
+#include <regex>
+#include <string>
+#include <cassert>
 
 using namespace std;
 
 const int N = 40;
 
-template <class SUMMABLE>
-void sum( int n, const SUMMABLE array[], SUMMABLE& res = 0) {
-    for (int i = 0; i < n; ++i) res += array[i];
-}
-
-typedef enum Color{RED, BLUE, GREEN} Color;
-
-class X
-{
-public:
-    X() { std::cout << "X::X()" << std::endl; }
-    X( X const & ) { std::cout << "X::X( X const & )" << std::endl; }
-    X& operator=( X const & ) { 
-		std::cout << "X::operator=(X const &)" << std::endl; 
-		return *this;
-	}
-};
-
-inline X f() {
-    X tmp;
-    return tmp;
-}
-
-template <class F>
-void g(F f) {f();};
-
-int main() {
-    X x;
-    x = f();
-    vector<int> v(1);
-
-    cout << static_cast<long>(1.2f) << endl;
-    cout << long(1.2f) << endl;
-
-    g([](){cout << "hello" << endl;});
+int main(int argc, char* args[]) {
+    //assert(argc == 3);
+    //string s(args[1]);
+    //string p(args[2]);
+    //cout << "TEXT " << s << " PATTERN " << p << endl;
+    //std::regex word_regex(p);
+    //auto words_begin = 
+    //    std::sregex_iterator(s.begin(), s.end(), word_regex);
+    //auto words_end = std::sregex_iterator();
+ 
+    //std::cout << "Found "
+    //          << std::distance(words_begin, words_end)
+    //          << " matches\n";
+ 
+    //for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+    //    std::smatch match = *i;
+    //    std::string match_str = match.str();
+    //        std::cout << "  " << match_str << '\n';
+    //}
+    int n = 10;
+    string* ss = new string[n];
+    ss[1] = "hello";
+    ss[2] = "world";
+    for (int i = 0; i < n; ++i) cout << ss[i] << endl;
     return 0;
 }
 

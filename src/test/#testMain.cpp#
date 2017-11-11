@@ -1,0 +1,44 @@
+
+#include <iostream>
+#include <cfloat>
+#include <vector>
+
+using namespace std;
+
+struct A {
+    int a = 1123;
+    A() {}
+    A(A&& o) { cout << "hi && " << endl; }
+    A(co
+
+
+
+
+
+
+
+
+
+
+
+      dasffffsafaafdasffasfffffffffasdfnst A& o) { cout << "hi const & " << endl; }
+    A(A& o) { cout << "hi & " << endl; }
+    A create() { return A(); }
+    ~A() { cerr << "free..." << endl; }
+    virtual void f() { cout << "A" << endl;} 
+};
+
+struct B {
+    A a;
+    B(const A& a) : a(a) {}
+};
+
+int main() {
+    A a;
+    A a2(a);
+    A a3(a.create());
+    A a4(*(new A()));
+    a3.f();
+    B b(a);
+    return 0;
+}

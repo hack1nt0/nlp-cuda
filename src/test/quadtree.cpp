@@ -2,7 +2,6 @@
 // Created by DY on 17-10-3.
 //
 
-
 #include <matrix/DenseMatrix.h>
 #include <quadtree.h>
 #include <common_headers.h>
@@ -17,6 +16,6 @@ int main() {
     QuadTree<DenseMatrix<double> > quadTree(matrix);
     timer.stop();
     printf("cost %e ms\n", timer.elapsed());
-    printf("nodes %d, leaves %d\n", quadTree.nodes, quadTree.leaves);
+    printf("nodes %d, leaves %d\n", quadTree.nodes, quadTree.leaves); 
     return 0;
 }

@@ -5,105 +5,100 @@
 #ifndef NLP_CUDA_DOCUMENT_TERM_MATRIX_H
 #define NLP_CUDA_DOCUMENT_TERM_MATRIX_H
 
-#include "matrix/DenseMatrix.h"
 #include <common_headers.h>
+#include <matrix/SparseMatrix.h>
 
 template <typename T>
-class DocumentTermMatrix {
-public:
-    string* dict;
-	T* idf;
-    SparseMatrix<T>* csr;
-    bool normalized = false;
+struct DocumentTermMatrix : SparseMatrix<T> {
+    vector<string> dict;
+//    string* dict;
+    T* idf;
+    bool normalized;
+    typedef SparseMatrix<T> super;
 
     virtual ~DocumentTermMatrix() {
-        delete[] dict;
         delete[] idf;
-        delete csr;
     }
 
-	template <class IStream>
-    DocumentTermMatrix(IStream& in) {
-        printf("Dtm...");
+    void save(const string& path) {
+        ofstream out(path.c_str());
+        out << this->rows << '\t' << this->cols << '\t' << this->nnz;
+        for (int i = 0; i <= this->rows; ++i) out << this->row_ptr[i] << '\n';
+        for (int i = 0; i < this->nnz; ++i) out << this->index[i] << '\n';
+        for (int i = 0; i <= this->nnz; ++i) out << this->data[i] << '\n';
+        for (int i = 0; i < this->cols; ++i) out << dict[i] << '\n';
+        for (int i = 0; i < this->cols; ++i) out << idf[i] << '\n';
+        out.close();
+    }
+
+    void read(const string& path) {
+        ifstream in(path.c_str());
         int rows, cols, nnz;
-        in >> rows;
-        in >> cols;
-        in >> nnz;
-        cout << rows << '\t' << cols << '\t' << nnz << endl;
-        csr = new SparseMatrix<T>(rows, cols, nnz);
-        dict = new string[cols];
-		idf = new T[cols];
+        in >> rows >> cols >> nnz;
+        this->rows = rows;
+        this->cols = cols;
+        this->nnz = nnz;
+        this->row_ptr = new int[rows + 1];
+        this->index = new int[nnz];
+        this->data = new T[nnz];
+        for (int i = 0; i <= rows; ++i) in >> this->row_ptr[i];
+        for (int i = 0; i < nnz; ++i) in >> this->index[i];
+        for (int i = 0; i < nnz; ++i) in >> this->data[i];
+        this->needFree = true;
+        dict.resize(cols);
+        idf = new T[cols];
         string word;
-		getline(in, word);
+        getline(in, word);
         for (int i = 0; i < cols; ++i) {
-			getline(in, word);
-//            dict->push_back(word);
-//            if (i + 10 > cols) cout << dict->at(i)  << endl;
+            getline(in, dict[i]);
         }
-		T a;
-		int b;
         for (int i = 0; i < cols; ++i) {
-            in >> a;
-			idf[i] = a;
+            in >> idf[i];
         }
-        for (int i = 0; i <= rows; ++i) {
-            in >> b;
-            csr->row_ptr[i] = b;
-        }
-		assert(csr->row_ptr[0] == 0 && csr->row_ptr[rows] == nnz);
-        for (int i = 0; i < nnz; ++i) {
-            in >> b;
-            csr->index[i] = b;
-        }
-        for (int i = 0; i < nnz; ++i) {
-            in >> a;
-            csr->data[i] = a;
-        }
-        this->normalized = false;
-    }
-
-    DocumentTermMatrix(int* row_ptr, int* index, T* data, int rows, int cols, int nnz, T* idf=null, string* dict=null) {
-
+        normalized = false;
+        in.close();
     }
 
     void normalize() {
         if (!normalized) {
             normalized = true;
-            T* data = csr->data;
-            int* row_ptr = csr->row_ptr;
-            int rows = csr->rows;
-            for (int i = 0; i < rows; ++i) {
-                int from = row_ptr[i];
-                int to   = row_ptr[i + 1];
+            for (int i = 0; i < this->rows; ++i) {
+                int from = this->row_ptr[i];
+                int to   = this->row_ptr[i + 1];
                 T norm2 = 0;
-                for (int j = from; j < to; ++j) norm2 += data[j] * data[j];
+                for (int j = from; j < to; ++j) norm2 += this->data[j] * this->data[j];
                 norm2 = sqrt(norm2);
                 assert(from == to || from < to && norm2 > 0);
-                for (int j = from; j < to; ++j) data[j] /= norm2;
+                for (int j = from; j < to; ++j) this->data[j] /= norm2;
             }
         }
     }
-    
-    inline 
-    int rows() const { return csr->rows; }
-    
-    inline
-    int cols() const { return csr->cols; }
-    
-    inline
-    int nnz() const { return csr->nnz; }
-    
-    inline
-    int size() const { return csr->nnz; }
-    
-    inline
-    T* data() const { return csr->data; }
-    
-    inline
-    int* index() const { return csr->index; }
-    
-    inline
-    int* row_ptr() const { return csr->row_ptr; }
 
+
+    struct GreaterCmp {
+        const T* data;
+        GreaterCmp(const T* data) : data(data) {}
+        bool operator()(int i, int j) { return data[i] > data[j]; }
+    };
+
+    struct LessCmp {
+        const T* data;
+        LessCmp(const T* data) : data(data) {}
+        bool operator()(int i, int j) { return data[i] < data[j]; }
+    };
+
+    vector<int> commonWords(int k) {
+        vector<int> order(this->cols);
+        for (int i = 0; i < this->cols; ++i) order[i] = i;
+        std::partial_sort(order.begin(), order.begin() + k, order.end(), LessCmp(this->idf));
+        return vector<int>(order.begin(), order.begin() + k);
+    }
+
+    vector<int> rareWords(int k) {
+        vector<int> order(this->cols);
+        for (int i = 0; i < this->cols; ++i) order[i] = i;
+        std::partial_sort(order.begin(), order.begin() + k, order.end(), GreaterCmp(this->idf));
+        return vector<int>(order.begin(), order.begin() + k);
+    }
 };
 #endif //NLP_CUDA_DOCUMENT_TERM_MATRIX_H

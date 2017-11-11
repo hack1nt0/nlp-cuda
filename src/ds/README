@@ -1,0 +1,5 @@
+## data structures for nlp
+
++ DocumentTermMatrix (dtm)
+
++ TermDocumentMatrix (tdm)

@@ -1,0 +1,5 @@
+struct Test {
+
+	void f();
+
+};

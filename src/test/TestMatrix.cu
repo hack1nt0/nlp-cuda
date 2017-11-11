@@ -3,7 +3,7 @@
 //
 
 #include <iostream>
-#include <matrix/CuSparseMatrix.h>
+#include <matrix/CuSparseMatrix.cu>
 #include <vector>
 using namespace std;
 //using namespace cutils;
@@ -26,7 +26,7 @@ int main(){
 //    matrixSum = sum(matrix, 1);
 //    timer.stop();
 //    cout << matrixSum << endl;
-//    DeviceSparseMatrix matrix(10, 10, 10);
+//    CuSparseMatrix matrix(10, 10, 10);
 //    cout << matrix << endl;
 //    GpuTimer timer;
 //    timer.start();
@@ -56,7 +56,7 @@ int main(){
     index.push_back(1);
     data.push_back(1);
     data.push_back(1);
-    DeviceSparseMatrix A(data, index, row_ptr, rows, cols);
+    CuSparseMatrix A(data, index, row_ptr, rows, cols);
     cout << "A" << endl;
     cout << A << endl;
     vector<float> v;

@@ -384,7 +384,7 @@
 //
 //
 //    template<typename T>
-//    class DeviceSparseMatrix : public BaseSparseExpression<T, DeviceSparseMatrix<T> > {
+//    class CuSparseMatrix : public BaseSparseExpression<T, CuSparseMatrix<T> > {
 //    public:
 //        T *_data;
 //        int *_index;
@@ -392,9 +392,9 @@
 //        int _rows, _cols, _nnz;
 //        cusparseMatDescr_t descr;
 //
-//        DeviceSparseMatrix() {}
+//        CuSparseMatrix() {}
 //
-//        DeviceSparseMatrix(const vector<T> &data, const vector<int> &index, const vector<int> &row_ptr, int rows, int cols) {
+//        CuSparseMatrix(const vector<T> &data, const vector<int> &index, const vector<int> &row_ptr, int rows, int cols) {
 //            checkCudaErrors(cudaMalloc((void **) &this->_data, sizeof(T) * data.size()));
 //            checkCudaErrors(cudaMemcpy(this->_data, data.data(), sizeof(T) * data.size(), cudaMemcpyHostToDevice));
 //            checkCudaErrors(cudaMalloc((void **) &this->_index, sizeof(int) * index.size()));
@@ -409,7 +409,7 @@
 //            cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
 //        }
 //
-//        DeviceSparseMatrix(const DeviceSparseMatrix<T> &that) {
+//        CuSparseMatrix(const CuSparseMatrix<T> &that) {
 //            checkCudaErrors(cudaMalloc((void **) &this->_data, sizeof(T) * that._nnz));
 //            checkCudaErrors(cudaMemcpy(this->_data, that._data, sizeof(T) * that._nnz, cudaMemcpyDeviceToDevice));
 //            this->_index = that._index;
@@ -421,7 +421,7 @@
 //        }
 //
 //        template <class ETYPE>
-//        DeviceSparseMatrix(const BaseSparseExpression<T, ETYPE> &sparseExpression) {
+//        CuSparseMatrix(const BaseSparseExpression<T, ETYPE> &sparseExpression) {
 //            const ETYPE &expression = sparseExpression.self();
 //            this->_rows = expression.rows();
 //            this->_cols = expression.cols();
@@ -433,14 +433,14 @@
 //            checkCudaErrors(cudaDeviceSynchronize());
 //        }
 //
-//        virtual ~DeviceSparseMatrix() {
+//        virtual ~CuSparseMatrix() {
 //            cudaFree(_data);
 //            cudaFree(_index);
 //            cudaFree(_row_ptr);
 //            checkCusparseErrors(cusparseDestroyMatDescr(descr));
 //        }
 //
-//        friend ostream &operator<<(ostream &os, const DeviceSparseMatrix<T> &matrix) {
+//        friend ostream &operator<<(ostream &os, const CuSparseMatrix<T> &matrix) {
 //            HostArray<T> data(matrix.nnz());
 //            checkCudaErrors(cudaMemcpy(data.data, matrix._data, sizeof(T) * data.size, cudaMemcpyDeviceToHost));
 //            HostArray<int> index(matrix.nnz());
@@ -456,7 +456,7 @@
 //
 //        template<typename ETYPE>
 //        inline
-//        DeviceSparseMatrix<T> &operator=(const BaseSparseExpression<T, ETYPE> &baseExpression) {
+//        CuSparseMatrix<T> &operator=(const BaseSparseExpression<T, ETYPE> &baseExpression) {
 //            const ETYPE &expression = baseExpression.self();
 //            fillDevice(_data, expression, _nnz);
 //            checkCudaErrors(cudaDeviceSynchronize());
@@ -530,7 +530,7 @@
 //        }
 //
 //        static void cudaSparseMultiplyDense(DeviceDenseMatrix<T> &C, float beta,
-//                                            const DeviceSparseMatrix<T> &A, bool transposeA, float alpha,
+//                                            const CuSparseMatrix<T> &A, bool transposeA, float alpha,
 //                                            const DeviceDenseMatrix<T> &B, bool transposeB) {
 //            cusparseOperation_t transA = transposeA ? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
 //            cusparseOperation_t transB = transposeB ? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
@@ -559,7 +559,7 @@
 //        template<typename LHS, typename RHS>
 //        inline
 //        DeviceDenseMatrix<T> &operator=(const SparseTransposeDotDenseExpression<T, LHS, RHS> &expression) {
-//            const DeviceSparseMatrix<T> &sparseMatrix = expression.lhs.lhs.self();
+//            const CuSparseMatrix<T> &sparseMatrix = expression.lhs.lhs.self();
 //            cout << sparseMatrix << endl;
 //            const DeviceDenseMatrix<T> &denseMatrix = expression.rhs.self();
 ////            cout << denseMatrix << endl;
@@ -586,7 +586,7 @@
 //
 //        template <class LHS, class RHS>
 //        DeviceDenseMatrix<T> &operator+=(const SparseTransposeDotDenseExpression<T, LHS, RHS> &expression) {
-//            DeviceSparseMatrix<T> sparseMatrix = expression.lhs.lhs.self();
+//            CuSparseMatrix<T> sparseMatrix = expression.lhs.lhs.self();
 //            DeviceDenseMatrix<T> denseMatrix = expression.rhs.self();
 //            cudaSparseMultiplyDense(*this, 1.0f, sparseMatrix, true, 1.0f, denseMatrix, false);
 //            return *this;

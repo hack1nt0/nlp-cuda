@@ -1,6 +1,6 @@
 #include "tsne.h"
-#include "matrix/CuSparseMatrix.h"
-#include "knn.h"
+#include "matrix/CuSparseMatrix.cu"
+#include "../knn/knn.h"
 
 using namespace std;
 
@@ -90,8 +90,8 @@ void tsne(double* Y, int* landmarks, int newRows, int newCols,
        grad[C,Yi] = 4 * \Sum_j (Pij-Qij) * (Yi-Yj) * (1+|Yi-Yj|^2)^-1
      */
     vector<double> var(newRows);
-    SymmetricDistance<double> D(newRows);
-//    dist(D.data, data, index, row_ptr, rows, cols, nnz, landmarks, newRows);
+    DistMatrix<double> D(newRows);
+//    knn(D.data, data, index, row_ptr, rows, cols, nnz, landmarks, newRows);
     cout << "D" << endl;
     cout << D << endl;
     double eps = pow(2., -52.);

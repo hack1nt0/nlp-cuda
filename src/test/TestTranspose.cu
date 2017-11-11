@@ -2,8 +2,8 @@
 // Created by DY on 17-6-21.
 //
 #include <matrix/transpose.cuh>
-#include <cuda_utils.h>
-#include <CpuTimer.h>
+#include <common_headers.h>
+#include <cu_common_headers.cu>
 //using namespace cutils;
 
 int main() {

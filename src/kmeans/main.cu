@@ -3,7 +3,7 @@
 #include <ds/DocumentTermMatrix.h>
 #include <fstream>
 #include "kmeans.h"
-#include "knn.h"
+#include "../knn/knn.h"
 
 int main(int argc, char* argv[]) {
     int k = atoi(argv[1]);
@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
 
 //    int Dsize = dtm.csr->rows * (dtm.csr->rows - 1) / 2;
 //    double* D = new double[Dsize];
-//    dist(D, dtm.csr->row_ptr, dtm.csr->index, dtm.csr->data, dtm.csr->rows, dtm.csr->cols, dtm.csr->nnz);
+//    knn(D, dtm.csr->row_ptr, dtm.csr->index, dtm.csr->data, dtm.csr->rows, dtm.csr->cols, dtm.csr->nnz);
 //    for (int i = 0; i < 10; ++i) cout << D[i] << endl;
 //    delete[] D;
 

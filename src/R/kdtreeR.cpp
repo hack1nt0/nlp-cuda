@@ -3,7 +3,7 @@
 //
 
 #include <Rcpp.h>
-#include "knn.h"
+#include "../knn/knn.h"
 using namespace Rcpp;
 
 struct KDTreeSegmentsVisitor {

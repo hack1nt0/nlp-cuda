@@ -4,7 +4,7 @@
 
 
 #include <matrix/DenseMatrix.h>
-#include "knn.h"
+#include "../knn/knn.h"
 #include <common_headers.h>
 
 int main() {

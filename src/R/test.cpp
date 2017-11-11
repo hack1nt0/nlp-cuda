@@ -7,13 +7,14 @@ struct A {
     int size;
     int* a;
     A(int size) {
-        cout << "manual construct..." << endl;
+        cout << "A manual construct..." << endl;
         this->size = size;
         a = new int[size];
+        memset(a, 0, sizeof(int) * size);
     }
 
     A(const A& o) {
-        cout << "copy construct..." << endl;
+        cout << "A copy construct..." << endl;
         delete[] a;
         this->size = o.size;
         a = new int[size];
@@ -21,13 +22,14 @@ struct A {
     }
 
     A(A&& o) {
-        cout << "move construct..." << endl;
+        cout << "A move construct..." << endl;
         size = o.size;
         a = o.a;
         o.a = NULL;
     }
 
-    ~A() {
+    virtual ~A() {
+        cout << "A destructing..." << endl;
         delete[] a;
     }
 
@@ -41,12 +43,14 @@ struct A {
     }
 
     A& operator=(A&& o) {
-        cout << "move revalued..." << endl;
+        cout << "A move revalued..." << endl;
         size = o.size;
         a = o.a;
         o.a = NULL;
         return *this;
     }
+
+    virtual void af() { cout << "af()" << endl; }
 };
 
 A f() {
@@ -54,16 +58,23 @@ A f() {
     return a;
 }
 
+struct B : A {
+    int a[2] = {1,2};
+
+    B(int size) : A(size) {
+        cout << "B manual costructing..." << endl;
+    }
+
+    void af() { cout << "B f() " << a[0] << endl; }
+    
+    ~B() {
+        cout << "B destructing..." << endl;
+    }
+};
+
 int main() {
-//    A a1(10);
-//    A a2(a1);
-//    A a3(1);
-//    a3 = a2;
-//    a3 = f();
-//    A a4(f());
-    int n = 1000000000;
-    double r;
-    for (int i = 0; i < n; ++i) r = sqrt(sqrt(sqrt(19.)));
-    cout << r << endl;
+    A* b = new B(10);
+    b->af();
+    delete b;
     return 0;
 }
