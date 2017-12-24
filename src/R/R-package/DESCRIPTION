@@ -1,0 +1,17 @@
+Package: corn
+Type: Package
+Title: Cuda On R & Nlp
+Version: 0.1.0
+Author: hack1nt0
+Maintainer: hack1nt0 <jealousing@gmail.com>
+Description: RCN is a collection of SparseMatrix-based cluster and classification algorithms.
+    The typical text data structure, Document-Term-Matrix, is in form of Sparse Matrix.
+License: NONE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+Depends:
+    ggplot2,
+    Matrix,
+    jiebaR
+

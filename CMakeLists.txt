@@ -12,8 +12,8 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin/")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin/")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/lib")
 
 find_package(CUDA REQUIRED)
 link_libraries(${CUDA_cusparse_LIBRARY})
@@ -23,22 +23,16 @@ find_package(TBB REQUIRED)
 include_directories(${TBB_INCLUDE_DIRS})
 link_libraries(${TBB_LIBRARIES} )
 
-# for OpenMP
-if (APPLE)
-    include_directories(/usr/local/Cellar/llvm/4.0.0_1/lib/clang/4.0.0/include/omp.h)
-    link_directories(/usr/local/Cellar/llvm/4.0.0_1/lib)
-endif(APPLE)
-find_package(OPENMP REQUIRED)
-
+find_package(BLAS REQUIRED)
 
 if(CUDA_FOUND)
     if (APPLE)
-        set(CUDA_NVCC_FLAGS "-ccbin /usr/bin/clang")
+        set(CUDA_NVCC_FLAGS "-ccbin /usr/bin/clang++")
     endif(APPLE)
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)
         set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wextra -lcublas -lcusparse")
-        set(CMAKE_CXX_FLAGS "-stdlib=libstdc++ ")
+        set(CMAKE_CXX_FLAGS "-std=c++11")
     endif (UNIX)
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")
@@ -47,16 +41,17 @@ else(CUDA_FOUND)
     message("CUDA is not installed on this system.")
 endif()
 
-include_directories(src/util)
+include_directories(src/utils)
 include_directories(src)
 
 add_subdirectory (src/optimizer)
 add_subdirectory (src/java)
 add_subdirectory (src/matrix)
-add_subdirectory (src/matrix/dist)
+add_subdirectory (src/dist)
 add_subdirectory (src/tsne)
 add_subdirectory (src/knn)
 add_subdirectory (src/R)
 add_subdirectory (src/kmeans)
 add_subdirectory (src/gmm)
-add_subdirectory (src/test)
+add_subdirectory (src/ds)
+

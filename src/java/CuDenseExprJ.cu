@@ -6,8 +6,8 @@
 #define NLP_CUDA_DENSE_EXPR_J_H
 
 #include <matrix/functors.h>
-#include <common_headers.h>
-#include <cu_common_headers.cu>
+#include "../utils/utils.h"
+#include "../utils/cutils.cu"
 #include <stdexcept>
 
 namespace JNI {

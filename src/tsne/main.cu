@@ -1,7 +1,7 @@
 #include "tsne.h"
 #include <iostream>
 #include <matrix/DenseMatrix.h>
-#include <ds/DocumentTermMatrix.h>
+#include <matrix/DocumentTermMatrix.h>
 #include <fstream>
 
 using namespace std;

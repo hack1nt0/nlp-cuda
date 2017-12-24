@@ -67,7 +67,7 @@ struct CuDenseMatrix : CuDenseExpr<T, CuDenseMatrix<T> > {
     CuDenseMatrix<T>& operator=(const DenseMatrix<T>& o);
 
     CuDenseMatrix<T>& operator=(T value) {
-        fillDevice(data, getNnz(), CuDenseConstViewer<T>(value));
+        fillDevice(data, getNnz(), CuDenseConstExpr<T>(value));
         checkCudaErrors(cudaDeviceSynchronize());
         return *this;
     }

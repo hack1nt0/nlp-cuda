@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_SIZE_FIXED_HEAP_H
 #define NLP_CUDA_SIZE_FIXED_HEAP_H
 
-#include <common_headers.h>
+#include <utils.h>
 #include <matrix/functors.h>
 
 template <typename T = double>

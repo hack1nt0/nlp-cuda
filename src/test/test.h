@@ -1,5 +1,0 @@
-struct Test {
-
-	void f();
-
-};

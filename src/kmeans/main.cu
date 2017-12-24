@@ -1,6 +1,6 @@
 
 #include <iostream>
-#include <ds/DocumentTermMatrix.h>
+#include <matrix/DocumentTermMatrix.h>
 #include <fstream>
 #include "kmeans.h"
 #include "../knn/knn.h"

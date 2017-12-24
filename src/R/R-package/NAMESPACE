@@ -1,0 +1,9 @@
+exportPattern("^[[:alpha:]]+")
+useDynLib(libcorn,
+          .new.dtm = new_dtm,
+          .row.normalize.dtm = row_normalize_dtm,
+          .knn.dtm = knn_dtm,
+          .test.dtm = test_dtm,
+          .xmeans.matrix = kmeans_matrix,
+          .xmeans.dtm = kmeans_dtm
+)

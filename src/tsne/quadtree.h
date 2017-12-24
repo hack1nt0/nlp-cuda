@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_QUADTREE_H
 #define NLP_CUDA_QUADTREE_H
 
-#include <common_headers.h>
+#include <utils.h>
 
 template <class PointMatrix>
 struct QuadTree {

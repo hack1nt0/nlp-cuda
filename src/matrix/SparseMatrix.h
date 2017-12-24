@@ -2,481 +2,502 @@
 // Created by DY on 17-10-14.
 //
 
-#ifndef NLP_CUDA_SPARSEMATRIX_H
-#define NLP_CUDA_SPARSEMATRIX_H
+#ifndef NLP_CUDA_SPARSE_MAVRIX_H
+#define NLP_CUDA_SPARSE_MAVRIX_H
 
-#include "SparseExpr.h"
-#include <common_headers.h>
-#include <matrix/dist/MetricType.h>
+#include "SparseExpr.h"                 
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <vector>
+#include <map>
 
+using namespace std;
 
-/**
- *
- * Shallow copy, Compressed Sparse Row(CSR) matrix class
- *
- */
-template <typename T>
-struct SparseMatrix : SparExpr<T, SparseMatrix<T> > {
-    T *data;
-    int *index;
-    int *row_ptr;
-    int rows;
-    int cols;
-    int nnz;
-    bool needFree;
+template <typename V = double, typename I = int>
+struct SparseMatrix : SparExpr<V, I, SparseMatrix<V, I> > {
+  public:
+    typedef SparseMatrix<V, I>     self_t;
+    typedef I                      index_t;
+    typedef V                      value_t;
+  protected:
+    index_t rows = 0;
+    index_t cols = 0;
+    index_t nnz = 0;
+    index_t* csrPtr = nullptr;
+    index_t* csrInd = nullptr;
+    value_t* csrVal = nullptr;
+    index_t* cscPtr = nullptr;
+    index_t* cscInd = nullptr;
+    value_t* cscVal = nullptr;
+    int needFree = 0; //0: dont'free, 1: free all, 2: free only csr data, 3: free only csc data;
+
+  public:
 
     virtual ~SparseMatrix() {
-        if (needFree) {
-            delete[] data;
-            delete[] index;
-            delete[] row_ptr;
+        switch (needFree) {
+            case 0: break;
+            case 1:
+                delete[] csrPtr;
+                delete[] csrInd;
+                delete[] csrVal;
+                delete[] cscPtr;
+                delete[] cscInd;
+                delete[] cscVal;
+                break;
+            case 2:
+                delete[] csrPtr;
+                delete[] csrInd;
+                delete[] csrVal;
+                break;
+            case 3:
+                delete[] cscPtr;
+                delete[] cscInd;
+                delete[] cscVal;
+                break;
         }
     }
 
-    SparseMatrix() {
-        this->data = 0;
-        this->index = 0;
-        this->row_ptr = 0;
-        this->rows = this->cols = this->nnz = 0;
-        this->needFree = false;
-    }
-
-    SparseMatrix(const SparseMatrix<T> &that) {
-        this->data = that.data;
-        this->index = that.index;
-        this->row_ptr = that.row_ptr;
-        this->rows = that.rows;
-        this->cols = that.cols;
-        this->nnz = that.nnz;
-        this->needFree = false;
-    }
-
-    SparseMatrix(int rows, int cols, int nnz, int* row_ptr, int* index, T* data) : data(data), index(index), row_ptr(row_ptr),
-                                                rows(rows), cols(cols), nnz(nnz) {
-        this->needFree = false;
-    }
-
-    SparseMatrix(int rows, int cols, int nnz) {
-        this->rows = rows;
-        this->cols = cols;
-        this->nnz = nnz;
-        this->row_ptr = new int[rows + 1];
-        memset(this->row_ptr, 0, sizeof(int) * (rows + 1));
-        this->index = new int[nnz];
-        this->data = new T[nnz];
-        memset(this->data, 0, sizeof(T) * nnz);
-        this->needFree = true;
-    }
-
-    SparseMatrix(int rows, int cols, float density, unsigned int seed) {
-        this->rows = rows;
-        this->cols = cols;
-        this->row_ptr = new int[rows + 1];
-        this->row_ptr[0] = 0;
-        vector<T> data;
-        vector<int> index;
-        srand(seed);
-        this->nnz = 0;
-        for (int i = 0; i < rows; ++i) {
-            int count = 0;
-            for (int j = 0; j < cols; ++j) {
-                float p = (float) rand() / RAND_MAX;
-                if (p < density) {
-                    data.push_back((T) p);
-                    index.push_back(j);
-                    this->nnz++;
-                    count++;
-                }
-            }
-            this->row_ptr[i + 1] = (count + this->row_ptr[i]);
-        }
-        this->data = new T[this->nnz];
-        this->index = new int[this->nnz];
-        for (int i = 0; i < this->nnz; ++i) {
-            this->data[i] = data[i];
-            this->index[i] = index[i];
-        }
-        this->needFree = true;
-    }
-
-    template <class EType>
-    SparseMatrix& operator=(const SparExpr<T, EType> &expr) {
-        const EType& e = expr.self();
-        for (int i = 0; i < nnz; ++i) this->at(i) = e.at(i);
+    template <class EVype>
+    self_t& operator=(const SparExpr<V, I, EVype>& expr) {
+        updateCscValue();
+        const EVype& e = expr.self();
+        for (index_t i = 0; i < nnz; ++i) this->at(i) = e.at(i);
+        updateCsrValue();
         return *this;
     }
 
-    SparseMatrix<T>& operator=(const SparseMatrix<T>& o) {
-        cerr << "hi &" << endl;
+    self_t& operator=(const self_t& o) {
         if (this == &o) {
             return *this;
         }
-        assert(nnz == o.nnz && rows == o.rows && needFree);
-        rows = o.rows;
-        cols = o.cols;
-        memcpy(row_ptr, o.row_ptr, sizeof(int) * (rows + 1));
-        memcpy(index, o.index, sizeof(int) * nnz);
-        memcpy(data, o.data, sizeof(T) * nnz);
+        assert(nnz == o.nnz && rows == o.rows && cols == o.cols);
+        memcpy(csrPtr, o.csrPtr, sizeof(index_t) * (rows + 1));
+        memcpy(csrInd, o.csrInd, sizeof(index_t) * nnz);
+        memcpy(csrVal, o.csrVal, sizeof(value_t) * nnz);
+        memcpy(cscPtr, o.cscPtr, sizeof(index_t) * (cols + 1));
+        memcpy(cscInd, o.cscInd, sizeof(index_t) * nnz);
+        memcpy(cscVal, o.cscVal, sizeof(value_t) * nnz);
         return *this;
     }
 
-    SparseMatrix<T>& operator=(SparseMatrix<T>&& o) {
+    self_t& operator=(self_t&& o) {
         cerr << "hi &&" << endl;
         if (this == &o) {
             return *this;
         }
-        delete[](this->row_ptr);
-        delete[](this->index);
-        delete[](this->data);
-        this->data = o.data;
-        this->index = o.index;
-        this->row_ptr = o.row_ptr;
-        this->rows = o.rows;
-        this->cols = o.cols;
-        this->nnz = o.nnz;
-        this->needFree = true;
-        o.data = NULL;
-        o.index = NULL;
-        o.row_ptr = NULL;
+        self_t::~SparseMatrix();
+        csrPtr = o.csrPtr;
+        csrInd = o.csrInd;
+        csrVal = o.csrVal;
+        cscPtr = o.cscPtr;
+        cscInd = o.cscInd;
+        cscVal = o.cscVal;
+        needFree = 1;
+        o.csrPtr = nullptr;
+        o.csrInd = nullptr;
+        o.csrVal = nullptr;
+        o.cscPtr = nullptr;
+        o.cscInd = nullptr;
+        o.cscVal = nullptr;
         return *this;
     }
 
-//    template <class CuSparseMatrix>
-//    SparseMatrix &operator=(const CuSparseMatrix &d_matrix) {
-//        if (this->nnz != d_matrix.nnz) {
-//            if (this->data != 0) {
-//                delete[] this->data;
-//                delete[] this->index;
-//            }
-//            this->nnz = d_matrix.nnz;
-//            this->data = new T[this->nnz];
-//            this->index = new int[this->nnz];
-//        }
-//        if (this->rows != d_matrix.rows) {
-//            if (this->row_ptr != 0) {
-//                delete[] this->row_ptr;
-//            }
-//            this->rows = d_matrix.rows;
-//            this->row_ptr = new int[this->rows + 1];
-//        }
-//        this->cols = d_matrix.cols;
-//        this->needFree = true;
-//        cudaMemcpy(this->data, d_matrix.data, sizeof(T) * this->nnz, cudaMemcpyDeviceToHost);
-//        cudaMemcpy(this->index, d_matrix.index, sizeof(int) * this->nnz, cudaMemcpyDeviceToHost);
-//        cudaMemcpy(this->row_ptr, d_matrix.row_ptr, sizeof(int) * (this->rows + 1), cudaMemcpyDeviceToHost);
-//        return *this;
-//    }
-
-    template <class EType>
-    SparseMatrix& operator/=(const SparExpr<T, EType> &expr) {
+    template <class EVype>
+    SparseMatrix& operator/=(const SparExpr<V, I, EVype>& expr) {
         *this = *this / expr.self();
         return *this;
     }
 
-    SparseMatrix& operator/=(T value) {
-        *this = *this / value;
+    SparseMatrix& operator/=(V csrVal) {
+        *this = *this / csrVal;
         return *this;
     }
 
-//    template <class EType>
-//    SparseMatrix<T> &operator=(const TransSparExpr<T, EType> &transExpr) {
-//        const EType& e = transExpr.lhs;
-//        int* oldIndex = index;
-//        int* oldRow_ptr = row_ptr;
-//        index = new int[nnz];
-//        row_ptr = new int[cols + 1];
-//        memset(row_ptr, 0, sizeof(int) * (cols + 1)); //!
-//        for (int i = 0; i < rows; ++i) {
-//            int from = oldRow_ptr[i];
-//            int to   = oldRow_ptr[i + 1];
-//            for (int j = from; j < to; ++j) row_ptr[oldIndex[j] + 1]++;
-//        }
-//        for (int i = 1; i <= cols; ++i) row_ptr[i] += row_ptr[i - 1];
-//        for (int i = 0; i < rows; ++i) {
-//            int from = oldRow_ptr[i];
-//            int to   = oldRow_ptr[i + 1];
-//            for (int j = from; j < to; ++j) {
-//                index[row_ptr[oldIndex[j]]] = i;
-//                data[row_ptr[oldIndex[j]]] = e.at(j);
-//                row_ptr[oldIndex[j]]++;
-//            }
-//        }
-//        for (int i = cols; i > 0; --i) row_ptr[i] = row_ptr[i - 1];
-//        row_ptr[0] = 0;
-//        swap(rows, cols);
-//        delete[] oldIndex;
-//        delete[] oldRow_ptr;
-//        return *this;
-//    }
+    SparseMatrix(index_t rows,
+                 index_t cols,
+                 index_t nnz,
+                 index_t *csrPtr,
+                 index_t *csrInd,
+                 value_t *csrVal,
+                 index_t *cscPtr,
+                 index_t *cscInd,
+                 value_t *cscVal,
+                 bool _needFree = false)
+        : rows(rows),
+          cols(cols),
+          nnz(nnz),
+          csrPtr(csrPtr),
+          csrInd(csrInd),
+          csrVal(csrVal),
+          cscPtr(cscPtr),
+          cscInd(cscInd),
+          cscVal(cscVal),
+          needFree(_needFree ? 1 : 0) {}
 
-
-    SparseMatrix<T> operator~() {
-        const SparseMatrix<T>& a = *this;
-        int rows = a.cols;
-        int cols = a.rows;
-        int nnz = a.nnz;
-        T* data = new T[nnz];
-        int* index = new int[nnz];
-        int* row_ptr = new int[rows + 1];
-        memset(row_ptr, 0, sizeof(int) * (rows + 1)); //!
-        for (int i = 0; i < a.rows; ++i) {
-            int from = a.row_ptr[i];
-            int to   = a.row_ptr[i + 1];
-            for (int j = from; j < to; ++j) {
-                if (a.index[j] + 1 >= rows + 1) {
-                    cout << j << ' ' << from << ' ' << to << ' ' << a.index[j] + 1 << endl;
-                    for (int k = from; k < to; ++k) cout << a.index[k] << endl;
-                }
-                row_ptr[a.index[j] + 1]++;
-            }
-        }
-        for (int i = 1; i <= rows; ++i) row_ptr[i] += row_ptr[i - 1];
-        for (int i = 0; i < a.rows; ++i) {
-            int from = a.row_ptr[i];
-            int to   = a.row_ptr[i + 1];
-            for (int j = from; j < to; ++j) {
-                assert(row_ptr[a.index[j]] < nnz);
-                index[row_ptr[a.index[j]]] = i;
-                data[row_ptr[a.index[j]]] = a.data[j];
-                row_ptr[a.index[j]]++;
-            }
-        }
-        for (int i = rows; i > 0; --i) row_ptr[i] = row_ptr[i - 1];
-        row_ptr[0] = 0;
-        SparseMatrix<T> t(rows, cols, nnz, row_ptr, index, data);
-        t.needFree = true;
-        return t;
+    SparseMatrix() {
     }
 
-    SparseMatrix<T> operator+(const SparseMatrix<T>& b) {
-        const SparseMatrix<T>& a = *this;
-        assert(b.rows == a.rows && a.cols == b.cols);
-        int* row_ptr = new int[a.rows + 1];
-        memset(row_ptr, 0, sizeof(int) * (a.rows + 1));
-        for (int i = 0; i < a.rows; ++i) {
-            int aj = a.row_ptr[i];
-            int bj = b.row_ptr[i];
-            while (aj < a.row_ptr[i + 1] && bj < b.row_ptr[i + 1]) {
-                if (a.index[aj] == b.index[bj]) aj++, bj++;
-                else if (a.index[aj] < b.index[bj]) aj++;
-                else if (a.index[aj] > b.index[bj]) bj++;
-                row_ptr[i + 1]++;
+    SparseMatrix(const SparseMatrix<V, I> &o) : rows(o.rows), cols(o.cols), nnz(o.nnz), csrPtr(o.csrPtr), csrInd(o.csrInd), csrVal(o.csrVal), cscPtr(o.cscPtr), cscInd(o.cscInd), cscVal(o.cscVal), needFree(0) {
+    }
+
+    SparseMatrix(index_t rows, index_t cols, index_t nnz) :
+        rows(rows), cols(cols), nnz(nnz),
+        csrPtr(new index_t[rows + 1]), csrInd(new index_t[nnz]), csrVal(new value_t[nnz]),
+        cscPtr(new index_t[rows + 1]), cscInd(new index_t[nnz]), cscVal(new value_t[nnz]),
+        needFree(1) {
+    }
+
+    SparseMatrix(index_t rows, index_t cols, index_t nnz,
+                     index_t* ptr, index_t* ind, value_t* val, bool csr = false, bool _needFree = false) : rows(rows), cols(cols), nnz(nnz) {
+        if (csr) {
+            csrPtr = ptr;
+            csrInd = ind;
+            csrVal = val;
+            cscPtr = new index_t[cols + 1];
+            cscInd = new index_t[nnz];
+            cscVal = new value_t[nnz];
+            transpose(cscPtr, cscInd, cscVal, rows, cols, nnz, csrPtr, csrInd, csrVal, true);
+            needFree = _needFree ? 1 : 3;
+        } else {
+            cscPtr = ptr;
+            cscInd = ind;
+            cscVal = val;
+            csrPtr = new index_t[rows + 1];
+            csrInd = new index_t[nnz];
+            csrVal = new value_t[nnz];
+            transpose(csrPtr, csrInd, csrVal, rows, cols, nnz, cscPtr, cscInd, cscVal, false);
+            needFree = _needFree ? 1 : 2;
+        }
+    }
+
+    static void transpose(index_t*& newPtr, index_t*& newInd, value_t*& newVal, index_t rows, index_t cols, index_t nnz, const index_t* oldPtr, const index_t* oldInd, const value_t* oldVal, bool csr = false) {
+        if (csr) {
+            memset(newPtr, 0, sizeof(index_t) * (cols + 1));
+            for (index_t i = 0; i < rows; ++i) {
+                for (index_t j = oldPtr[i]; j < oldPtr[i + 1]; ++j) {
+                    ++newPtr[oldInd[j] + 1];
+                }
+            }
+            for (index_t i = 1; i <= cols; ++i) newPtr[i] += newPtr[i - 1];
+            for (index_t i = 0; i < rows; ++i) {
+                for (index_t j = oldPtr[i]; j < oldPtr[i + 1]; ++j) {
+                    index_t &ptr = newPtr[oldInd[j]];
+                    newInd[ptr] = i;
+                    newVal[ptr] = oldVal[j];
+                    ++ptr;
+                }
+            }
+            for (index_t i = cols; i > 0; --i) newPtr[i] = newPtr[i - 1]; newPtr[0] = 0;
+        } else {
+            memset(newPtr, 0, sizeof(index_t) * (rows + 1));
+            for (index_t i = 0; i < cols; ++i) {
+                for (index_t j = oldPtr[i]; j < oldPtr[i + 1]; ++j) {
+                    ++newPtr[oldInd[j] + 1];
+                }
+            }
+            for (index_t i = 1; i <= rows; ++i) newPtr[i] += newPtr[i - 1];
+            for (index_t i = 0; i < cols; ++i) {
+                for (index_t j = oldPtr[i]; j < oldPtr[i + 1]; ++j) {
+                    index_t &ptr = newPtr[oldInd[j]];
+                    newInd[ptr] = i;
+                    newVal[ptr] = oldVal[j];
+                    ++ptr;
+                }
+            }
+            for (index_t i = rows; i > 0; --i) newPtr[i] = newPtr[i - 1]; newPtr[0] = 0;
+        }
+    }
+
+    void updateCsrValue() {
+        for (index_t i = 0; i < cols; ++i) {
+            for (index_t j = cscPtr[i]; j < cscPtr[i + 1]; ++j) {
+                index_t &ptr = csrPtr[cscInd[j]];
+                csrVal[ptr] = cscVal[j];
+                ++ptr;
             }
         }
-        for (int i = 1; i <= rows; ++i) row_ptr[i] += row_ptr[i - 1];
-        int nnz = row_ptr[a.rows];
-        int* index = new int[nnz];
-        T* data = new T[nnz];
-        for (int i = 0; i < a.rows; ++i) {
-            int aj = a.row_ptr[i];
-            int bj = b.row_ptr[i];
-            while (aj < a.row_ptr[i + 1] && bj < b.row_ptr[i + 1]) {
-                if (a.index[aj] == b.index[bj]) {
-                    index[row_ptr[i]] = a.index[aj];
-                    data[row_ptr[i]] = a.data[aj] + b.data[bj];
-                    row_ptr[i]++, aj++, bj++;
-                }
-                else if (a.index[aj] < b.index[bj]) {
-                    index[row_ptr[i]] = a.index[aj];
-                    data[row_ptr[i]] = a.data[aj];
-                    row_ptr[i]++, aj++;
-                }
-                else if (a.index[aj] > b.index[bj]) {
-                    index[row_ptr[i]] = b.index[bj];
-                    data[row_ptr[i]] = b.data[bj];
-                    row_ptr[i]++, bj++;
-                }
-            }
-            while (aj < a.row_ptr[i + 1]) {
-                index[row_ptr[i]] = a.index[aj];
-                data[row_ptr[i]] = a.data[aj];
-                row_ptr[i]++, aj++;
-            }
-            while (bj < b.row_ptr[i + 1]) {
-                index[row_ptr[i]] = b.index[bj];
-                data[row_ptr[i]] = b.data[bj];
-                row_ptr[i]++, bj++;
+        for (index_t i = rows; i > 0; --i) csrPtr[i] = csrPtr[i - 1]; csrPtr[0] = 0;
+    }
+
+    void updateCscValue() {
+        for (index_t i = 0; i < rows; ++i) {
+            for (index_t j = csrPtr[i]; j < csrPtr[i + 1]; ++j) {
+                index_t &ptr = cscPtr[csrInd[j]];
+                cscVal[ptr] = csrVal[j];
+                ++ptr;
             }
         }
-        for (int i = rows; i > 0; --i) row_ptr[i] = row_ptr[i - 1];
-        row_ptr[0] = 0;
-        SparseMatrix<T> c(rows, cols, nnz, row_ptr, index, data);
-        c.needFree = true;
-        return c;
+        for (index_t i = cols; i > 0; --i) cscPtr[i] = cscPtr[i - 1]; cscPtr[0] = 0;
     }
 
-    inline T at(int i) const {
-        return data[i];
+    inline const value_t& at(index_t i) const {
+        return cscVal[i];
     }
 
-    inline T& at(int i) {
-        return data[i];
+    inline value_t& at(index_t i) {
+        return cscVal[i];
     }
 
-    friend ostream &operator<<(ostream &os, const SparseMatrix &matrix) {
-        os << "HostSparseMatrix [rows, cols, nnz] = [" << matrix.rows << ", " << matrix.cols << ", " << matrix.nnz
-           << "]" << endl;
-        for (int i = 0; i < min(10, matrix.rows); ++i) {
-            int from = matrix.row_ptr[i], to = matrix.row_ptr[i + 1];
-            for (int j = 0; j < min(10, matrix.cols); ++j) {
-                if (from < to && j == matrix.index[from]) {
-                    printf("%e\t", matrix.data[from++]);
-                } else {
-                    printf("%10s\t", ".");
-                }
-            }
-            os << endl;
-        }
-        return os;
-    }
-
-    inline
-    int nrow() const {
+    inline index_t nrow() const {
         return rows;
     }
 
-    inline
-    int ncol() const {
+    inline index_t ncol() const {
         return cols;
     }
 
-    inline
-    int getNnz() const {
+    inline index_t getNnz() const {
         return nnz;
     }
+    I *getCsrPtr() const {
+        return csrPtr;
+    }
+    I *getCsrInd() const {
+        return csrInd;
+    }
+    V *getCsrVal() const {
+        return csrVal;
+    }
+    I *getCscPtr() const {
+        return cscPtr;
+    }
+    I *getCscInd() const {
+        return cscInd;
+    }
+    V *getCscVal() const {
+        return cscVal;
+    }
+    void print(bool head = true) const {
+        if (head) std::printf("SparMat %d x %d = %d\n", rows, cols, nnz);
+        for (int i = 0; i < rows; ++i) row(i).print(false);
+    }
 
-    struct Row : SparExpr<T, SparseMatrix<T>::Row > {
-        const int cols;
-        const int nnz;
-        int* index;
-        T* data;
+    virtual void save(ofstream& s) {
+        s.write((char*)(&rows), sizeof(index_t));
+        s.write((char*)(&cols), sizeof(index_t));
+        s.write((char*)(&nnz), sizeof(index_t));
+        s.write((char*)csrPtr, sizeof(index_t) * (rows + 1));
+        s.write((char*)csrInd, sizeof(index_t) * (nnz));
+        s.write((char*)csrVal, sizeof(value_t) * (nnz));
+        s.write((char*)cscPtr, sizeof(index_t) * (cols + 1));
+        s.write((char*)cscInd, sizeof(index_t) * (nnz));
+        s.write((char*)cscVal, sizeof(value_t) * (nnz));
+    }
 
-        Row(const int cols, const int nnz, int *index, T *data)
-            : cols(cols), nnz(nnz), index(index), data(data) {}
+    virtual void read(ifstream& s) {
+        self_t::~SparseMatrix();
+        s.read((char*)(&rows), sizeof(index_t));
+        s.read((char*)(&cols), sizeof(index_t));
+        s.read((char*)(&nnz), sizeof(index_t));
+        csrPtr = new index_t[rows + 1];
+        csrInd = new index_t[nnz];
+        csrVal = new value_t[nnz];
+        cscPtr = new index_t[cols + 1];
+        cscInd = new index_t[nnz];
+        cscVal = new value_t[nnz];
+        s.read((char*)csrPtr, sizeof(index_t) * (rows + 1));
+        s.read((char*)csrInd, sizeof(index_t) * (nnz));
+        s.read((char*)csrVal, sizeof(value_t) * (nnz));
+        s.read((char*)cscPtr, sizeof(index_t) * (cols + 1));
+        s.read((char*)cscInd, sizeof(index_t) * (nnz));
+        s.read((char*)cscVal, sizeof(value_t) * (nnz));
+        needFree = true;
+    }
 
-        inline T& at(int i) const {
-            return data[i];
+    static inline ConstSparExpr<V, I> C(V v) {
+        return ConstSparExpr<V, I>(v);
+    };
+
+    struct Vector: SparExpr<V, I, Vector> {
+        typedef self_t           belong_t;
+        typedef belong_t::Vector self_t;
+        typedef I                index_t;
+        typedef V                value_t;
+        const index_t rows = 0;
+        const index_t cols = 0;
+        const index_t nnz = 0;
+        const index_t* index = nullptr;
+        value_t* value = nullptr;
+
+        Vector() {}
+
+        Vector(const I rows, const I cols, const I nnz, const I *index, V *value)
+            : rows(rows), cols(cols), nnz(nnz), index(index), value(value) {}
+
+        inline value_t& at(index_t i) {
+            assert(i < nnz);
+            return value[i];
         }
 
-        void println(int nnz=10) {
-            printf("SparRow[nnz=%d,cols=%d]\n", this->nnz, cols);
-            for (int i = 0; i < min(nnz, this->nnz); ++i) printf("(%d,%f)\t", index[i], data[i]);
-            printf("\n");
+        inline const value_t& at(index_t i) const {
+            assert(i < nnz);
+            return value[i];
         }
 
         template <class EType>
-        Row& operator=(const SparExpr<T, EType> &expr) {
+        self_t& operator=(const SparExpr<V, I, EType> &expr) {
             const EType& e = expr.self();
-            for (int i = 0; i < nnz; ++i) this->data[i] = e.at(i);
+            for (index_t i = 0; i < nnz; ++i) this->at(i) = e.at(i);
             return *this;
         }
 
-        Row& operator/=(T value) {
-            *this = *this / value;
+        template <class Etype>
+        self_t& operator+=(const SparExpr<V, I, Etype>& e) {
+            *this = *this + e;
             return *this;
         }
 
-        T dist2(const Row& b, MetricType metricType = EUCLIDEAN) const {
-            const Row& a = *this;
-            T d = 0;
-            switch (metricType) {
-                case EUCLIDEAN: {
-                    int ai = 0;
-                    int bi = 0;
-                    while (ai < a.nnz && bi < b.nnz) {
-                        if (a.index[ai] == b.index[bi]) {
-                            d += (a.data[ai] - b.data[bi]) * (a.data[ai] - b.data[bi]);
-                            ai++;
-                            bi++;
-                        } else if (a.index[ai] > b.index[bi]) {
-                            d += b.data[bi] * b.data[bi];
-                            bi++;
-                        } else {
-                            d += a.data[ai] * a.data[ai];
-                            ai++;
-                        }
-                    }
-                    while (ai < a.nnz) {
-                        d += a.data[ai] * a.data[ai];
-                        ai++;
-                    }
-                    while (bi < b.nnz) {
-                        d += b.data[bi] * b.data[bi];
-                        bi++;
-                    }
-                    return d;
-                }
-                default:
-                    fprintf(stderr, "other metric dist method not implmented yet...\n");
-                    exit(1);
+        template <class Etype>
+        self_t& operator-=(const SparExpr<V, I, Etype>& e) {
+            *this = *this - e;
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator*=(const SparExpr<V, I, Etype>& e) {
+            *this = *this * e;
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator/=(const SparExpr<V, I, Etype>& e) {
+            *this = *this / e;
+            return *this;
+        }
+
+        self_t& operator/=(V v) {
+            *this = *this / belong_t::C(v);
+            return *this;
+        }
+
+        inline index_t nrow() const { return rows; }
+
+        inline index_t ncol() const { return cols; }
+
+        inline index_t getNnz() const { return nnz; }
+
+        void print(bool head = true) const {
+            if (head) std::printf("SparMat::Vec %d x %d = %d\n", rows, cols, nnz);
+            if (nnz == 0) {
+                for (index_t i = 0; i < max(rows, cols); ++i) std::printf(".\t");
+                return;
             }
+            for (index_t i = 0; i < index[0]; ++i) std::printf(".\t");
+            for (index_t i = 0; i < nnz; ++i) {
+                std::printf("%e\t", value[i]);
+                for (int j = index[i] + 1; j < (i == nnz - 1 ? cols : index[i + 1]); ++j) std::printf(".\t");
+            }
+            std::printf("\n");
         }
 
-        template <class Comparator = std::less<T> >
-        void sortByIndex() {
-            vector<pair<int, T> > order(nnz);
-            for (int i = 0; i < nnz; ++i) order[i] = make_pair(index[i], data[i]);
-            Comparator compare;
-            sort(order.begin(), order.end(), [&](const pair<int, T>& a, const pair<int, T>& b) -> bool {return compare(a.first, b.first);});
-            for (int i = 0; i < nnz; ++i) index[i] = order[i].first, data[i] = order[i].second;
+        value_t squaredEuclideanDist(const Vector& o) const {
+            value_t r = 0;
+            index_t i = 0;
+            index_t oi = 0;
+            while (i < nnz && oi < o.nnz) {
+                if (index[i] == o.index[oi]) {r += (at(i) - o.at(oi)) * (at(i) - o.at(oi)); ++i; ++oi; }
+                else if (index[i] < o.index[oi]) {r += (at(i)) * (at(i)); ++i; }
+                else {r += (o.at(oi)) * (o.at(oi)); ++oi; }
+            }
+            while (i < nnz) {r += (at(i)) * (at(i)); ++i;}
+            while (oi < o.nnz) {r += (o.at(oi)) * (o.at(oi)); ++oi;}
+            return r;
         }
-
-        template <class Comparator = std::less<T> >
-        void sortByData() {
-            vector<pair<int, T> > order(nnz);
-            for (int i = 0; i < nnz; ++i) order[i] = make_pair(index[i], data[i]);
-            Comparator compare;
-            sort(order.begin(), order.end(), [&](const pair<int, T>& a, const pair<int, T>& b) -> bool {return compare(a.second, b.second);});
-            for (int i = 0; i < nnz; ++i) index[i] = order[i].first, data[i] = order[i].second;
-        }
-
-        inline int nrow() const { return 1; }
-
-        inline int ncol() const { return cols; }
-
-        inline int getNnz() const { return nnz; }
+        inline value_t euclideanDist(const Vector& o) const { return std::sqrt(squaredEuclideanDist(o)); }
     };
 
+    typedef Vector Row;
+    typedef Vector Col;
 
-    inline SparseMatrix<T>::Row row(int i) const {
-        return SparseMatrix<T>::Row(cols, row_ptr[i + 1] - row_ptr[i], index + row_ptr[i], data + row_ptr[i]);
+    inline Row row(int i) const {
+        return Row(1, cols, csrPtr[i + 1] - csrPtr[i], csrInd + csrPtr[i], csrVal + csrPtr[i]);
     }
 
-    void println(int rows=10, int nnz=10) {
-        printf("SparMat[rows=%d,cols=%d,nnz=%d]\n", nrow(), ncol(), getNnz());
-        for (int i = 0; i < min(rows, nrow()); ++i) {
-            int from = row_ptr[i], to = row_ptr[i + 1];
-            int nnz2 = nnz;
-            while (nnz2 > 0 && from < to) {
-                printf("(%d,%f)\t", index[from], data[from]);
-                --nnz2; ++from;
+    inline Col col(int i) const {
+        return Col(rows, 1, cscPtr[i + 1] - cscPtr[i], cscInd + cscPtr[i], cscVal + cscPtr[i]);
+    }
+
+    /** Utils methods **/
+
+    static self_t rnorm(index_t rows, index_t cols, double density, int seed) {
+        srand(seed);
+        self_t r;
+        index_t nnz = 0; //actual nnz may not equal to given nnz.
+        index_t* csrPtr = new index_t[rows + 1]; csrPtr[0] = 0;
+        vector<value_t> vs;
+        vector<index_t> is;
+        for (index_t i = 0; i < rows; ++i) {
+            index_t count = 0;
+            for (index_t j = 0; j < cols; ++j) {
+                float p = (float) rand() / RAND_MAX;
+                if (p < density) {
+                    vs.push_back((value_t) p);
+                    is.push_back(j);
+                    nnz++;
+                    count++;
+                }
             }
-            printf("\n");
+            csrPtr[i + 1] = count + csrPtr[i];
         }
+        value_t* csrVal = new value_t[nnz];
+        index_t* csrInd = new index_t[nnz];
+        for (index_t i = 0; i < nnz; ++i) {
+            csrVal[i] = vs[i];
+            csrInd[i] = is[i];
+        }
+        return self_t(rows, cols, nnz, csrPtr, csrInd, csrVal, true, true);
     }
 
-    void save(const string& path) {
-        FILE* f = fopen(path.c_str(), "w");
-        fprintf(f, "%d\t%d\t%d\n", rows, cols, nnz);
-        fwrite(row_ptr, sizeof(int), (rows + 1), f);
-        fwrite(index, sizeof(int), nnz, f);
-        fwrite(data, sizeof(T), nnz, f);
-        fclose(f);
+    SparseMatrix<V, I> operator~() {
+        return SparseMatrix<V, I>(cols, rows, nnz, cscPtr, cscInd, cscVal, csrPtr, csrInd, csrVal);
     }
 
-    void read(const string& path) {
-        FILE* f = fopen(path.c_str(), "r");
-        fscanf(f, "%d\t%d\t%d\n", &rows, &cols, &nnz);
-        row_ptr = new int[rows + 1];
-        index = new int[nnz];
-        data = new T[nnz];
-        fread(row_ptr, sizeof(int), (rows + 1), f);
-        fread(index, sizeof(int), nnz, f);
-        fread(data, sizeof(T), nnz, f);
-        needFree = true;
-        fclose(f);
+    self_t operator+(const SparseMatrix<V, I>& o) {
+        assert(rows == o.rows && cols == o.cols);
+        vector<map<index_t, value_t>> rmap(rows);
+#pragma omp parallel for
+        for (index_t i = 0; i < rows; ++i) {
+            Vector arow = row(i);
+            Vector brow = o.row(i);
+            index_t ai = 0;
+            index_t bi = 0;
+            while (ai < arow.nnz && bi < brow.nnz) {
+                if (arow.index[ai] < brow.index[bi]) {
+                    rmap[i][arow.index[ai]] = arow.at(ai);
+                    ++ai;
+                } else if (arow.index[ai] > brow.index[bi]) {
+                    rmap[i][brow.index[bi]] = brow.at(bi);
+                    ++bi;
+                } else {
+                    rmap[i][brow.index[bi]] = brow.at(bi) + arow.at(ai);
+                    ++ai;
+                    ++bi;
+                }
+            }
+            while (ai < arow.nnz) { rmap[i][arow.index[ai]] = arow.at(ai); ++ai; }
+            while (bi < brow.nnz) { rmap[i][brow.index[bi]] = brow.at(bi); ++bi; }
+        }
+        index_t* csrPtr = new index_t[rows + 1];
+        index_t nnz = 0;
+        for (index_t i = 0; i < rows; ++i) {
+            csrPtr[i + 1] = rmap[i].size() + csrPtr[i];
+            nnz += rmap[i].size();
+        }
+        index_t* csrInd = new index_t[nnz];
+        value_t* csrVal = new value_t[nnz];
+#pragma omp parallel for
+        for (index_t i = 0; i < rows; ++i) {
+            index_t ptr = csrPtr[i];
+            for (auto p : rmap[i]) {
+                csrInd[ptr] = p.first;
+                csrVal[ptr] = p.second;
+                ++ptr;
+            }
+        }
+        return self_t(rows, cols, nnz, csrPtr, csrInd, csrVal, true, true);
     }
+
 };
 
-
-#endif //NLP_CUDA_SPARSEMATRIX_H
+#endif //NLP_CUDA_SPARSE_MAVRIX_H

@@ -6,240 +6,293 @@
 #define NLP_CUDA_DENSE_MATRIX_H
 
 #include "DenseExpr.h"
+#include "SparseMatrix.h"
 
 /**
- * Shallow copy, Row Major matrix class
+ * Shallow copy, Col Major matrix
  */
 
-template <class T>
-class DenseMatrix : public DenseExpr<T, DenseMatrix<T> > {
+template <class V = double, typename I = int>
+class DenseMatrix : public DenseExpr<V, I, DenseMatrix<V, I> > {
   public:
-    int rows = 0;
-    int cols = 0;
-    int nnz = 0;
-
-    T* data = NULL;
-    int offset = 0;
-    int stride = 0;
-
+    typedef DenseMatrix<V, I> self_t;
+    typedef V                 value_t;
+    typedef I                 index_t;
+    index_t rows = 0;
+    index_t cols = 0;
+    value_t* value = nullptr;
     bool needFree = false;
-
-    static const T MIN_VALUE;
-
-    static const DenseMatrix<T> NULL_VALUE;
 
     virtual ~DenseMatrix() {
         if (needFree) {
-            delete[] data;
+            delete[] value;
         }
     }
 
     DenseMatrix() {}
 
-    DenseMatrix(const DenseMatrix<T>& o) {
+    DenseMatrix(const self_t& o) {
         this->rows = o.rows;
         this->cols = o.cols;
-        this->nnz = o.nnz;
-        this->data = o.data;
-        this->offset = o.offset;
-        this->stride = o.stride;
+        this->value = o.value;
         this->needFree = false;
     }
 
-    DenseMatrix(DenseMatrix<T>&& o) {
-        cout << "hi && " << endl;
+    DenseMatrix(self_t&& o) {
+        this->~DenseMatrix();
         this->rows = o.rows;
         this->cols = o.cols;
-        this->nnz = o.nnz;
-        this->data = o.data;
-        o.data = NULL;
-        this->offset = o.offset;
-        this->stride = o.stride;
+        this->value = o.value;
         this->needFree = o.needFree;
+        o.value = nullptr;
     }
 
-    DenseMatrix(T* data, int rows, int cols, int offset = 0, int stride = 0) {
+    DenseMatrix(index_t rows, index_t cols, value_t* value, bool needFree = false) {
         this->rows = rows;
         this->cols = cols;
-        this->nnz = rows * cols;
-        this->data = data;
-        this->offset = offset;
-        this->stride = stride == 0 ? cols : stride;
-        this->needFree = false;
+        this->value = value;
+        this->needFree = needFree;
     }
 
-    DenseMatrix(int rows, int cols) :
-        rows(rows), cols(cols), nnz(rows * cols),
-        offset(0), stride(cols),
-        needFree(true) {
-        data = new T[rows * cols];
-    }
+    DenseMatrix(index_t rows, index_t cols) : rows(rows), cols(cols), value(new value_t[rows * cols]), needFree(true) {}
 
-    DenseMatrix<T>& operator=(const DenseMatrix<T>& o) {
-        for (int i = 0; i < rows; ++i)
-            for (int j = 0; j < cols; ++j) at(i, j) = o.at(i, j);
+    self_t& operator=(const self_t& o) {
+        for (index_t i = 0; i < rows; ++i)
+            for (index_t j = 0; j < cols; ++j) at(i, j) = o.at(i, j);
         return *this;
     }
 
-    template <class EType>
-    DenseMatrix<T>& operator=(const DenseExpr<T, EType>& expr) {
-        const EType& e = expr.self();
-        for (int i = 0; i < rows * cols; ++i) {
-            at(i) = e.at(i);
+    inline const value_t& at(index_t r, index_t c) const {
+        return value[c * rows + r];
+    }
+
+    inline value_t& at(index_t r, index_t c) {
+        return value[c * rows + r];
+    }
+
+    inline const value_t& at(index_t i) const {
+        return value[i];
+    }
+
+    inline value_t& at(index_t i) {
+        return value[i];
+    }
+
+    inline const value_t& operator[](index_t i) const {
+        return value[i];
+    }
+
+    inline value_t& operator[](index_t i) {
+        return value[i];
+    }
+
+    inline index_t nrow() const {return rows;}
+
+    inline index_t ncol() const {return cols;}
+
+    inline index_t getNnz() const {return rows * cols;}
+
+    /** Utils methods **/
+
+    template <class Etype>
+    self_t& operator=(const DenseExpr<V, I, Etype>& e) {
+        auto ee = e.self();
+#pragma omp parallel for
+        for (index_t c = 0; c < cols; ++c) {
+            for (index_t r = 0; r < rows; ++r) {
+                at(r, c) = ee.at(r, c);
+            }
         }
         return *this;
     }
 
-    DenseMatrix<T>& operator=(T value) {
-        *this = ConstDenseExpr<T>(value);
+    self_t& operator=(value_t v) {
+        //if (v == 0 || v == -1) memset(value, v, sizeof(value_t) * getNnz());
+        *this = ConstDenseExpr<V, I>(v);
         return *this;
     }
 
-    template <class EType>
-    DenseMatrix<T>& operator-=(const DenseExpr<T, EType>& expr) {
-        const EType& e = expr.self();
+    template <class Etype>
+    self_t& operator+=(const DenseExpr<V, I, Etype>& e) {
+        *this = *this + e;
+        return *this;
+    }
+    template <class Etype>
+    self_t& operator-=(const DenseExpr<V, I, Etype>& e) {
         *this = *this - e;
         return *this;
     }
 
-    template <class EType>
-    DenseMatrix<T>& operator+=(const DenseExpr<T, EType>& expr) {
-        const EType& e = expr.self();
-        *this = *this + e;
+    template <class Etype>
+    self_t& operator*=(const DenseExpr<V, I, Etype>& e) {
+        *this = *this * e;
         return *this;
     }
 
-    DenseMatrix<T>& operator/=(T value) {
-        *this = *this / value;
+    template <class Etype>
+    self_t& operator/=(const DenseExpr<V, I, Etype>& e) {
+        *this = *this / e;
         return *this;
     }
 
-    void t() {
-        T* oldData = data;
-        data = new T[rows * cols];
-        for (int i = 0; i < cols; ++i) {
-            for (int j = 0; j < rows; ++j) {
-                data[i * rows + j] = oldData[j * cols + i];
-            }
+    void print(bool head = true) const {
+        if (head) std::printf("DenseMat %d x %d\n", rows, cols);
+        for (index_t i = 0; i < rows; ++i) row(i).print(false);
+    }
+
+    void save(ofstream& s) {
+        s.write((char*)(&rows), sizeof(rows));
+        s.write((char*)(&cols), sizeof(cols));
+        s.write((char*)value,   sizeof(value_t));
+    }
+
+    void read(ifstream& s) {
+        s.read((char*)(&rows), sizeof(rows));
+        s.read((char*)(&cols), sizeof(cols));
+        s.read((char*)value,   sizeof(value_t));
+    }
+
+    static self_t rnorm(index_t rows, index_t cols, value_t mean=0., value_t std=1.) {
+        DenseMatrix<value_t> res(rows, cols);
+        index_t size = rows * cols;
+        for (index_t i = 0; i < size; i += 2) {
+            double x, y, radius;
+            do {
+                x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
+                y = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
+                radius = (x * x) + (y * y);
+            } while ((radius >= 1.0) || (radius == 0.0));
+            radius = sqrt(-2 * log(radius) / radius);
+            x *= radius;
+            y *= radius;
+            res.at(i) = x * std + mean;
+            if (i + 1 < size) res.at(i + 1) = y * std + mean;
         }
-        delete[] oldData;
-        swap(rows, cols);
+        return res;
     }
 
-    T sum() {
-        T s = 0;
-        for (int i = 0; i < rows * cols; ++i) s += data[i];
-        return s;
+    static self_t runif(index_t rows, index_t cols, value_t from=0, value_t to=1) {
+        DenseMatrix<value_t> res(rows, cols);
+        index_t size = rows * cols;
+        for (index_t i = 0; i < size; ++i) res.at(i) = runif(from, to);
+        return res;
     }
 
-    inline T at(int r, int c) const {
-        return data[r * stride + c + offset];
-    }
+    struct Vector : DenseExpr<V, I, Vector> {
+        typedef self_t         belong_t;
+        typedef self_t::Vector self_t;
+        typedef V              value_t;
+        typedef I              index_t;
+        index_t stride;
+        index_t nnz;
+        value_t* value;
 
-    inline T at(int i) const {
-        return at(i / cols, i % cols);
-    }
+        Vector(index_t stride, index_t nnz, value_t *value) : nnz(nnz), stride(stride), value(value) {}
 
-    inline T& at(int r, int c) {
-        return data[r * stride + c + offset];
-    }
-
-    inline T& at(int i) {
-        return at(i / cols, i % cols);
-    }
-
-    inline int nrow() const {return rows;}
-
-    inline int ncol() const {return cols;}
-
-    inline int getNnz() const {return nnz;}
-
-    DenseMatrix<T> at(int fromRow, int fromCol, int toRow, int toCol) {
-        int offset = (fromRow * cols + fromCol);
-        return DenseMatrix<T>(this->data, toRow - fromRow, toCol - fromCol, offset, cols);
-    }
-
-    void println(int rows=10, int cols=10) const {
-        printf("DenseMat[rows=%d,cols=%d]\n", nrow(), ncol());
-        for (int i = 0; i < min(rows, nrow()); ++i) {
-            for (int j = 0; j < min(cols, ncol()); ++j) {
-                T v = this->at(i, j);
-                printf("%f\t", v);
-            }
-            printf("\n");
+        inline const value_t& at(index_t i) const {
+            assert(i < nnz);
+            return value[i * stride];
         }
+
+        inline value_t& at(index_t i) {
+            assert(i < nnz);
+            return value[i*stride];
+        }
+
+        template <class EType>
+        self_t& operator=(const DenseExpr<V, I, EType> &expr) {
+            const EType& e = expr.self();
+            for (index_t i = 0; i < nnz; ++i) at(i) = e.at(i);
+            return *this;
+        }
+
+        self_t& operator=(V v) {
+            *this = ConstDenseExpr<V, I>(v);
+            return *this;
+        }
+
+        self_t& operator=(const typename SparseMatrix<V, I>::Vector& sv) {
+            //memset(value, 0, sizeof(value_t) * nnz);
+            for (index_t i = 0; i < nnz; ++i) at(i) = 0;
+            for (index_t i = 0; i < sv.nnz; ++i) at(sv.index[i]) = sv.at(i);
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator+=(const DenseExpr<V, I, Etype>& e) {
+            *this = *this + e;
+            return *this;
+        }
+
+        self_t& operator+=(const typename SparseMatrix<V, I>::Vector& sv) {
+            for (index_t i = 0; i < sv.nnz; ++i) {
+                at(sv.index[i]) += sv.at(i);
+            }
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator-=(const DenseExpr<V, I, Etype>& e) {
+            *this = *this - e;
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator*=(const DenseExpr<V, I, Etype>& e) {
+            *this = *this * e;
+            return *this;
+        }
+
+        template <class Etype>
+        self_t& operator/=(const DenseExpr<V, I, Etype>& e) {
+            *this = *this / e;
+            return *this;
+        }
+
+        self_t& operator/=(V v) {
+            *this = *this / ConstDenseExpr<V, I>(v);
+            return *this;
+        }
+
+        void print(bool head = true) const {
+            if (head) std::printf("DenseMat::Vec 1 x %d\n", nnz);
+            for (int i = 0; i < nnz; ++i) cout << at(i) << '\t';
+            cout << endl;
+        }
+
+        value_t squaredEuclideanDist(const Vector& o) const {
+            value_t r = 0;
+            for (index_t i = 0; i < nnz; ++i) r += (o.at(i) - at(i)) * (o.at(i) - at(i));
+            return r;
+        }
+        inline value_t euclideanDist(const Vector& o) const { return std::sqrt(squaredEuclideanDist(o)); }
+
+        value_t squaredEuclideanDist(const typename SparseMatrix<V, I>::Vector& o) const {
+            value_t r = 0;
+            index_t i = 0;
+            index_t j = 0;
+            while (i < nnz) {
+                value_t vi = at(i);
+                value_t vj = j < o.nnz && i == o.index[j] ? o.at(j++) : 0;
+                r += (vi - vj) * (vi - vj);
+                ++i;
+            }
+            return r;
+        }
+        inline value_t euclideanDist(const typename SparseMatrix<V, I>::Vector& o) const { return std::sqrt(squaredEuclideanDist(o)); }
+    };
+
+    typedef Vector Row;
+    typedef Vector Col;
+
+    Row row(index_t i) const {
+        return Row(rows, cols, value + i);
     }
 
-    void save(const string& path) {
-        FILE* f = fopen(path.c_str(), "w");
-        fprintf(f, "%d\t%d\t%d\n", rows, cols, nnz);
-        fwrite(data, sizeof(T), nnz, f);
-        fclose(f);
-    }
-
-    void read(const string& path) {
-        FILE* f = fopen(path.c_str(), "r");
-        fscanf(f, "%d\t%d\t%d\n", &rows, &cols, &nnz);
-        data = new T[nnz];
-        fread(data, sizeof(T), nnz, f);
-        fclose(f);
+    Col col(index_t i) const {
+        return Col(1, rows, value + i * rows);
     }
 };
-
-template <typename T>
-const DenseMatrix<T> DenseMatrix<T>::NULL_VALUE = *(new DenseMatrix<T>());
-
-template <typename T>
-const T DenseMatrix<T>::MIN_VALUE = FLT_MIN;
-
-template <typename T = double>
-inline T rnorm(T mean=0., T std=1.) {
-    double x, y, radius;
-    do {
-        x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-        y = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-        radius = (x * x) + (y * y);
-    } while((radius >= 1.0) || (radius == 0.0));
-    radius = sqrt(-2 * log(radius) / radius);
-    x *= radius;
-    y *= radius;
-    return T(x * std + mean);
-}
-
-template <typename T = double>
-DenseMatrix<T> rnorm(int rows, int cols, T mean=0., T std=1.) {
-    DenseMatrix<T> res(rows, cols);
-    int size = rows * cols;
-    for (int i = 0; i < size; i += 2) {
-        double x, y, radius;
-        do {
-            x = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-            y = 2 * (rand() / ((double) RAND_MAX + 1)) - 1;
-            radius = (x * x) + (y * y);
-        } while ((radius >= 1.0) || (radius == 0.0));
-        radius = sqrt(-2 * log(radius) / radius);
-        x *= radius;
-        y *= radius;
-        res.at(i) = x * std + mean;
-        if (i + 1 < size) res.at(i + 1) = y * std + mean;
-    }
-    return res;
-}
-
-template <typename T = double>
-inline T runif(T from=0, T to=1) {
-    double x = (double)rand() / RAND_MAX;
-    return from + T((to - from) * x);
-}
-
-template <typename T = double>
-DenseMatrix<T> runif(int rows, int cols, T from=0, T to=1) {
-    DenseMatrix<T> res(rows, cols);
-    int size = rows * cols;
-    for (int i = 0; i < size; ++i) res.at(i) = runif(from, to);
-    return res;
-}
-
 #endif
 
 

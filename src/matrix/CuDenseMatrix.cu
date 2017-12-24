@@ -14,6 +14,7 @@
  */
 template <typename T>
 CuDenseMatrix<T> CuDenseMatrix<T>::operator~() {
+
     if (this->rows == this->cols) {
         transposeDevice(*this);
         checkCudaErrors(cudaDeviceSynchronize());
@@ -23,6 +24,7 @@ CuDenseMatrix<T> CuDenseMatrix<T>::operator~() {
         h_matrix.t();
         *this = h_matrix;
     }
+    return *this;//todo
 };
 
 template <typename T>

@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_CU_DENSE_EXPR_H
 #define NLP_CUDA_CU_DENSE_EXPR_H
 
-#include <cu_common_headers.cu>
+#include "../utils/cutils.cu"
 #include "cufunctors.cu"
 
 template<typename T, typename ETYPE>

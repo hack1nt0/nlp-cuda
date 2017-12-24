@@ -6,8 +6,8 @@
 #define NLP_CUDA_KMEANS_H
 
 #include "kmeans.h"
-#include <common_headers.h>
-#include <cu_common_headers.cu>
+#include "../utils/utils.h"
+#include "../utils/cutils.cu"
 #include "matrix/CuSparseMatrix.cu"
 #include <CpuTimer.h>
 

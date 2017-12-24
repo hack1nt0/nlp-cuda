@@ -3,8 +3,8 @@
 //
 
 #include "tsne.h"
-#include <common_headers.h>
-#include <ds/DocumentTermMatrix.h>
+#include <utils.h>
+#include <matrix/DocumentTermMatrix.h>
 
 int main() {
 //    ifstream in;

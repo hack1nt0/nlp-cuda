@@ -6,57 +6,11 @@
 #define NLP_CUDA_FUNCTORS_H
 
 #include <cmath>
+#include <algorithm>
 
-//using namespace std;
+/** All Ops MUST apply to primary type **/
 
-template<typename T>
-class Add {
-public:
-    inline
-    static T apply(T a, T b) { return a + b; }
-};
-
-template<typename T>
-class Mul {
-public:
-    inline
-    static T apply(T a, T b) { return a * b; }
-};
-
-template<typename T>
-class Div {
-public:
-    inline
-    static T apply(T a, T b) { return a / b; }
-};
-
-template<typename T>
-class Sub {
-public:
-    inline
-    static T apply(T a, T b) { return a - b; }
-};
-
-template<typename T>
-class Pow {
-public:
-    inline
-    static T apply(T a, T b) { return pow(a, b); }
-};
-
-template<typename T>
-class Max {
-public:
-    inline
-    static T apply(T a, T b) { return max(a, b); }
-};
-
-template<typename T>
-class Identity {
-public:
-    inline
-    static T apply(T a) { return a; }
-};
+/** Unary Functors **/
 
 template<typename T>
 class Neg {
@@ -107,6 +61,38 @@ public:
     static int apply(T a) { return a == 0 ? 0 : (a < 0 ? -1 : +1); }
 };
 
+/** Binary Functors **/
+
+template<typename LV, typename RV>
+class Add {
+  public:
+    inline
+    static LV apply(LV a, RV b) { return a + b; }
+};
+
+template<typename LV, typename RV>
+class Sub {
+  public:
+    inline
+    static LV apply(LV a, RV b) { return a - b; }
+};
+template<typename LV, typename RV>
+class Mul {
+  public:
+    inline
+    static LV apply(LV a, RV b) { return a * b; }
+};
+template<typename LV, typename RV>
+class Div {
+  public:
+    inline
+    static LV apply(LV a, RV b) { return a / b; }
+};
+
+template<typename LV, typename RV>
+struct Pow {
+    inline static LV apply(LV a, RV b) { return a ^ b; }
+};
 template<typename T>
 class Eq {
 public:

@@ -7,5 +7,5 @@
 
 # collect source files
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2 -msse -fopenmp")
-CUDA_ADD_EXECUTABLE(knn main.cpp)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+CUDA_ADD_EXECUTABLE(vptree main.cpp)

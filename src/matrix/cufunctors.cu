@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_FUNCTORS_H
 #define NLP_CUDA_FUNCTORS_H
 
-#include <cu_common_headers.cu>
+#include "../utils/cutils.cu"
 
 //using namespace std;
 

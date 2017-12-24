@@ -7,4 +7,5 @@
 
 # collect source files
 
-CUDA_ADD_EXECUTABLE(kmeans main.cpp main.cu kmeans.cu)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+CUDA_ADD_EXECUTABLE(kmeans main.cpp ../utils/utils.cpp)

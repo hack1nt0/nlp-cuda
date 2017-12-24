@@ -1,5 +1,5 @@
 #include <iostream>
-#include <ds/DocumentTermMatrix.h>
+#include <matrix/DocumentTermMatrix.h>
 #include "gmm.h"
 
 template <typename T>

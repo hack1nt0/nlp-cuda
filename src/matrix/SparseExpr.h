@@ -7,174 +7,122 @@
 
 #include "functors.h"
 
-template<typename T, typename ETYPE>
+template<typename V, typename I, typename ETYPE>
 struct SparExpr {
     inline const ETYPE& self(void) const {
         return *static_cast<const ETYPE *>(this);
     }
 };
 
-template <class OP, class LHS, typename T>
-struct UnarySparExpr : public SparExpr<T, UnarySparExpr<OP, LHS, T> > {
+template <class OP, class LHS, typename V, typename I>
+struct UnarySparExpr : public SparExpr<V, I, UnarySparExpr<OP, LHS, V, I> > {
     LHS lhs;
 
-    UnarySparExpr(const LHS &lhs) : lhs(lhs) {}
+    UnarySparExpr(const LHS& lhs) : lhs(lhs) {}
 
-    inline T at(int i) const {
+    inline V at(I i) const {
         return OP::apply(lhs.at(i));
     }
 
-    inline int nrow() const { return lhs.nrow(); }
+    inline I nrow() const { return lhs.nrow(); }
 
-    inline int ncol() const { return lhs.ncol(); }
+    inline I ncol() const { return lhs.ncol(); }
 
-    inline int getNnz() const { return lhs.getNnz(); }
+    inline I getNnz() const { return lhs.getNnz(); }
 };
 
-template <class LHS, typename T>
-UnarySparExpr<Sqrt<T>, LHS, T> sqrt(const SparExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnarySparExpr<Sqrt<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnarySparExpr<Sqrt<V>, LHS, V, I> sqrt(const SparExpr<V, I, LHS> &lhs) {
+    return UnarySparExpr<Sqrt<V>, LHS, V, I>(lhs.self());
 }
 
-template <class LHS, typename T>
-UnarySparExpr<Neg<T>, LHS, T> operator-(const SparExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnarySparExpr<Neg<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnarySparExpr<Neg<V>, LHS, V, I> operator-(const SparExpr<V, I, LHS>& lhs) {
+    return UnarySparExpr<Neg<V>, LHS, V, I>(lhs.self());
 }
 
-template <class LHS, typename T>
-UnarySparExpr<Exp<T>, LHS, T> exp(const SparExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnarySparExpr<Exp<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnarySparExpr<Exp<V>, LHS, V, I> exp(const SparExpr<V, I, LHS> &lhs) {
+    return UnarySparExpr<Exp<V>, LHS, V, I>(lhs.self());
 }
 
-template <class LHS, typename T>
-UnarySparExpr<Log<T>, LHS, T> log(const SparExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnarySparExpr<Log<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnarySparExpr<Log<V>, LHS, V, I> log(const SparExpr<V, I, LHS> &lhs) {
+    return UnarySparExpr<Log<V>, LHS, V, I>(lhs.self());
 }
 
-template <class OP, class LHS, class RHS, typename T>
-struct BinSparExpr : public SparExpr<T, BinSparExpr<OP, LHS, RHS, T> > {
+template <class OP, class LHS, class RHS, typename V, typename I>
+struct BinSparExpr : public SparExpr<V, I, BinSparExpr<OP, LHS, RHS, V, I> > {
     LHS lhs;
     RHS rhs;
 
     BinSparExpr(const LHS &lhs, const RHS &rhs) : lhs(lhs), rhs(rhs) {}
 
-    inline T at(int i) const {
+    inline V at(I i) const {
         return OP::apply(lhs.at(i), rhs.at(i));
     }
 
-    inline int nrow() const { return lhs.nrow(); }
+    inline I nrow() const { return lhs.nrow(); }
 
-    inline int ncol() const { return lhs.ncol(); }
+    inline I ncol() const { return lhs.ncol(); }
 
-    inline int getNnz() const { return lhs.getNnz(); }
+    inline I getNnz() const { return lhs.getNnz(); }
 };
 
-template <typename T>
-struct ConstSparExpr : public SparExpr<T, ConstSparExpr<T> > {
-    T v;
-    ConstSparExpr(T v) : v(v) {}
+template <typename V, typename I>
+struct ConstSparExpr : public SparExpr<V, I, ConstSparExpr<V, I> > {
+    V v;
+    ConstSparExpr(V v) : v(v) {}
 
-    inline T at(int r, int c) const {
-        return v;
-    }
-
-    inline T at(int i) const {
+    inline V at(I i) const {
         return v;
     }
 };
 
-template <class LHS, typename T>
-BinSparExpr<Mul<T>, LHS, ConstSparExpr<T>, T> operator*(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Mul<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
+template <class LHS, class RHS, typename LV, typename RV, typename I>
+BinSparExpr<Add<LV, RV>, LHS, RHS, LV, I> operator+(const SparExpr<LV, I, LHS> &lhs, const SparExpr<RV, I, RHS> &rhs) {
+    return BinSparExpr<Add<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
+template <class LHS, class RHS, typename LV, typename RV, typename I>
+BinSparExpr<Sub<LV, RV>, LHS, RHS, LV, I> operator-(const SparExpr<LV, I, LHS> &lhs, const SparExpr<RV, I, RHS> &rhs) {
+    return BinSparExpr<Sub<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
+template <class LHS, class RHS, typename LV, typename RV, typename I>
+BinSparExpr<Mul<LV, RV>, LHS, RHS, LV, I> operator*(const SparExpr<LV, I, LHS> &lhs, const SparExpr<RV, I, RHS> &rhs) {
+    return BinSparExpr<Mul<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
+template <class LHS, class RHS, typename LV, typename RV, typename I>
+BinSparExpr<Div<LV, RV>, LHS, RHS, LV, I> operator/(const SparExpr<LV, I, LHS> &lhs, const SparExpr<RV, I, RHS> &rhs) {
+    return BinSparExpr<Div<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
 };
 
-template <class LHS, class RHS, typename T>
-BinSparExpr<Mul<T>, LHS, RHS, T> operator*(const SparExpr<T, LHS> &lhs, const SparExpr<T, RHS> &rhs) {
-    return BinSparExpr<Mul<T>, LHS, RHS, T>(lhs.self(), rhs.self());
+template <class LHS, class RHS, typename V, typename I>
+BinSparExpr<NEq<V>, LHS, RHS, bool, I> operator!=(const SparExpr<V, I, LHS> &lhs, const SparExpr<V, I, RHS> &rhs) {
+    return BinSparExpr<NEq<V>, LHS, RHS, bool, I>(lhs.self(), rhs.self());
 };
 
-template <class LHS, typename T>
-BinSparExpr<Div<T>, LHS, ConstSparExpr<T>, T> operator/(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Div<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
-};
 
-template <class LHS, class RHS, typename T>
-BinSparExpr<Div<T>, LHS, RHS, T> operator/(const SparExpr<T, LHS> &lhs, const SparExpr<T, RHS> &rhs) {
-    return BinSparExpr<Div<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-BinSparExpr<Pow<T>, LHS, ConstSparExpr<T>, T> operator^(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Pow<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
-};
-
-template <class LHS, typename T>
-BinSparExpr<Sub<T>, LHS, ConstSparExpr<T>, T> operator-(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Sub<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
-};
-
-template <class LHS, typename T>
-BinSparExpr<Add<T>, LHS, ConstSparExpr<T>, T> operator+(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Add<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
-};
-
-template <class LHS, typename T>
-BinSparExpr<Max<T>, LHS, ConstSparExpr<T>, T> max(const SparExpr<T, LHS> &lhs, T rhs) {
-    return BinSparExpr<Max<T>, LHS, ConstSparExpr<T>, T>(lhs.self(), ConstSparExpr<T>(rhs));
-};
-
-template <class OP, class LHS, class RHS, typename T>
-struct BoolBinSparExpr : public SparExpr<T, BoolBinSparExpr<OP, LHS, RHS, T> > {
-    LHS lhs;
-    RHS rhs;
-
-    BoolBinSparExpr(const LHS &lhs, const RHS &rhs) : lhs(lhs), rhs(rhs) {}
-
-    inline bool at(int r, int c) const {
-        return OP::apply(lhs.at(r, c), rhs.at(r, c));
-    }
-
-    inline bool at(int i) const {
-        return OP::apply(lhs.at(i), rhs.at(i));
-    }
-
-    inline int nrow() const { return lhs.nrow(); }
-
-    inline int ncol() const { return lhs.ncol(); }
-
-    inline int getNnz() const { return lhs.getNnz(); }
-};
-
-template <class LHS, class RHS, typename T>
-BoolBinSparExpr<NEq<T>, LHS, RHS, T> operator!=(const SparExpr<T, LHS> &lhs, const SparExpr<T, RHS> &rhs) {
-    return BoolBinSparExpr<NEq<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-T max(const SparExpr<T, LHS> &lhs) {
+template <class LHS, typename V, typename I>
+V max(const SparExpr<V, I, LHS> &lhs) {
     const LHS& e = lhs.self();
-    T ma = e.at(0);
-    for (int i = 1; i < e.getNnz(); ++i) ma = max(ma, e.at(i));
+    V ma = e.at(0);
+    for (I i = 1; i < e.getNnz(); ++i) ma = std::max(ma, e.at(i));
     return ma;
 };
 
-template <class LHS, typename T>
-T min(const SparExpr<T, LHS> &lhs) {
+template <class LHS, typename V, typename I>
+V min(const SparExpr<V, I, LHS> &lhs) {
     const LHS& e = lhs.self();
-    T mi = e.at(0);
-    for (int i = 1; i < e.getNnz(); ++i) mi = min(mi, e.at(i));
+    V mi = e.at(0);
+    for (I i = 1; i < e.getNnz(); ++i) mi = std::min(mi, e.at(i));
     return mi;
 };
 
-template <class LHS, typename T>
-T sum(const SparExpr<T, LHS> &lhs) {
+template <class LHS, typename V, typename I>
+V sum(const SparExpr<V, I, LHS> &lhs) {
     const LHS &e = lhs.self();
-    T s = 0;
-    for (int i = 0; i < e.getNnz(); ++i) s += e.at(i);
+    V s = 0;
+    for (I i = 0; i < e.getNnz(); ++i) s += e.at(i);
     return s;
 };
 

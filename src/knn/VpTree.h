@@ -7,13 +7,16 @@
 
 #include <matrix/SparseMatrix.h>
 #include <ds/SizeFixedHeap.h>
+#include <ostream>
 
-template <typename T = double, class Matrix = SparseMatrix<T> >
+template <typename V = double, typename I = unsigned int, class Matrix = SparseMatrix<V, I> >
 struct VpTree {
+    typedef V value_t;
+    typedef I index_t;
     struct Node {
-        int vp = -1;
-        T radius1 = 0;
-        T radius2 = 0;
+        index_t vp = -1;
+        value_t radius1 = 0;
+        value_t radius2 = 0;
         Node* lchd = NULL;
         Node* rchd = NULL;
 
@@ -22,49 +25,55 @@ struct VpTree {
             delete rchd;
         }
 
-        inline bool isLeaf() {
+        inline bool isLeaf() const {
             return lchd == NULL && rchd == NULL;
         }
     };
     const Matrix& points;
     Node root;
-    struct Pair {
-        int pi;
-        T dist;
+    struct Neighbor {
+        index_t pointId;
+        value_t dist;
 
-        Pair() {}
-        Pair(const int& pi, const T& dist) : pi(pi), dist(dist) {}
-        Pair(const Pair& o) : pi(o.pi), dist(o.dist) {}
+        Neighbor() {}
+        Neighbor(const index_t& pi, const value_t& dist) : pointId(pi), dist(dist) {}
 
-        bool operator<(const Pair &rhs) const {
-            return dist < rhs.dist;
+        bool operator<(const Neighbor& o) const {
+            return dist != o.dist ? dist < o.dist : pointId < o.pointId;
+        }
+
+        friend ostream &operator<<(ostream &os, const Neighbor &neighbor) {
+            os << "pointId: " << neighbor.pointId << " dist: " << neighbor.dist;
+            return os;
         }
     };
-    vector<Pair> order;
+    vector<Neighbor> order;
 
     VpTree(const Matrix& points, int seed = 1) : points(points), order(points.nrow()) {
         srand(seed);
-        for (int i = 0; i < points.nrow(); ++i) order[i] = Pair(i, T(0));
+        for (index_t i = 0; i < points.nrow(); ++i) order[i] = {i, 0};
         buildTree(root, 0, points.nrow());
     }
 
-    void buildTree(Node& curNode, int from, int to) {
-        int size = to - from;
+    void buildTree(Node& curNode, index_t from, index_t to) {
+        index_t size = to - from;
         if (size <= 2) {
             return;
         }
         // order[from] always be the vantage point, so ignore it.
-        int vpi = from + rand() % size;
-        curNode.vp = order[vpi].pi;
+        index_t vpi = from + rand() % size;
+        curNode.vp = order[vpi].pointId;
         swap(order[from], order[vpi]);
         auto vpRow = points.row(curNode.vp);
         ++from;
-        for (int i = from; i < to; ++i) order[i].dist = vpRow.dist2(points.row(order[i].pi));
+        for (index_t i = from; i < to; ++i) {
+            order[i].dist = vpRow.dist2(points.row(order[i].pointId));
+        }
         sort(order.begin() + from, order.begin() + to); //todo
         if (order[to - 1].dist == 0) {//degenerated to one point//todo
             return;
         }
-        int mid = from + (to - from >> 1);
+        index_t mid = from + (to - from >> 1);
         curNode.radius1 = order[mid - 1].dist;
         curNode.radius2 = order[mid].dist;
         curNode.lchd = new Node();
@@ -73,154 +82,118 @@ struct VpTree {
         buildTree(*curNode.rchd, mid, to);
     }
 
-    //actually the MaxHeap
+    //actually a size-controlled max-heap
     struct KnnVisitor {
-        int* pis;
-        T* dists;
-        int k;
-        int size;
-        int start;
+        typedef vector<Neighbor> Container;
+//        Container* nearestPtr;
+        Container nearest;
+        index_t k;
+        index_t startId;
+        bool useAll;
+        index_t visited;
 
-        KnnVisitor(int* index, T* data, int k, int start = -1) :
-            k(k), size(0), pis(index), dists(data), start(start) {}
+        KnnVisitor(index_t k, index_t startId = -1, bool useAll = false) :
+            k(k), startId(startId), useAll(useAll), visited(0) {}
 
-        void push(int pi, T dist) {
-            if (pi == start) return;
-            if (size == k && dist < dists[0]) {
-                dists[0] = dist;
-                pis[0] = pi;
-                int cur = 0;
-                while (true) {
-                    int lchd = (cur << 1) + 1;
-                    if (lchd >= k) break;
-                    int rchd = lchd + 1;
-                    int chd = (rchd < k && dists[lchd] < dists[rchd]) ? rchd : lchd;
-                    if (dists[chd] <= dists[cur]) break;
-                    swap(dists[cur], dists[chd]);
-                    swap(pis[cur], pis[chd]);
-                    cur = chd;
-                }
-                return;
-            }
-            if (size < k) {
-                dists[size] = dist;
-                pis[size] = pi;
-                size++;
-                int cur = size - 1;
-                while (cur > 0) {
-                    int fa = cur - 1 >> 1;
-                    if (dists[cur] <= dists[fa]) break;
-                    swap(dists[fa], dists[cur]);
-                    swap(pis[fa], pis[cur]);
-                    cur = fa;
-                }
+        void visit(Neighbor&& candidate) {
+            ++visited;
+            if (candidate.pointId == startId) return;
+            if (size() < k) {
+                push(move(candidate));
+            } else if (candidate.dist < top().dist) {
+                do { pop(); } while (size() > 0 && candidate.dist < top().dist);
+                push(move(candidate));
+            } else if (useAll && candidate.dist == top().dist) {
+                push(move(candidate));
             }
         }
 
-        inline T top() {
-            return dists[0];
+        inline bool useful(value_t lb) {
+            return size() < k || top().dist > lb || (useAll && top().dist == lb);
         }
 
-        bool full() {
-            return size == k;
+        inline const Neighbor& top() const {
+            return nearest[0];
         }
+
+        inline index_t size() const { return nearest.size(); }
+
+        void push(Neighbor&& candidate) {
+            nearest.emplace_back(candidate);
+            index_t ptr = size() - 1;
+            while (ptr > 0) {
+                index_t fa = ptr - 1 >> 1;
+                if (nearest[fa].dist < nearest[ptr].dist) swap(nearest[fa], nearest[ptr]);
+                else break;
+                ptr = fa;
+            }
+        }
+
+        void pop() {
+            swap(nearest[0], nearest[size() - 1]);
+            nearest.pop_back();
+            index_t ptr = 0;
+            while (ptr < size()) {
+                index_t lc = (ptr << 1) + 1;
+                index_t rc = lc + 1;
+                if (lc >= size()) break;
+                index_t ma = lc;
+                if (rc < size() && nearest[lc].dist < nearest[rc].dist) ma = rc;
+                if (nearest[ptr].dist < nearest[ma].dist) swap(nearest[ma], nearest[ptr]);
+                else break;
+                ptr = ma;
+            }
+        }
+
+        inline index_t getVisited() { return visited; }
     };
 
-//    struct KnnClassificationVisitor {
-//        int* countOfLabel;
-//        vector<int> countOfTie;
-//        int nLabel;
-//        int* label;
-//        int k;
-//        int size;
-//        vector<Pair> heap;
-//        int start;
-//        bool tieIncluded;
-//
-//        virtual ~KnnClassificationVisitor() { //todo ?? valid or not
-//            for (int i = 0; i < nLabel; ++i) countOfLabel[i] += countOfTie[i];
-//        }
-//
-//        KnnClassificationVisitor(int k, int nLabel, int* label, int* data, int start = -1, bool tieIncluded = false) :
-//            k(k), size(0), heap(k), nLabel(nLabel), label(label), countOfLabel(data), countOfTie(nLabel),
-//            start(start), tieIncluded(tieIncluded) {
-//            memset(countOfLabel, 0, sizeof(int) * nLabel);
-//            memset(countOfTie.data(), 0, sizeof(int) * nLabel);
-//        }
-//
-//        void push(int pi, T dist) {
-//            if (pi == start) return;
-//            if (size >= k) {
-//                if (dist > dists[0]) return;
-//                if (dist < dists[0]) {
-//                    dists[0] = dist;
-//                    int cur = 0;
-//                    while (true) {
-//                        int lchd = (cur << 1) + 1;
-//                        if (lchd >= k) break;
-//                        int rchd = lchd + 1;
-//                        int chd = (rchd < k && dists[lchd] < dists[rchd]) ? rchd : lchd;
-//                        if (dists[chd] <= dists[cur]) break;
-//                        swap(dists[cur], dists[chd]);
-//                        cur = chd;
-//                    }
-//                    memset(countOfTie.data(), 0, sizeof(int) * nLabel);
-//                    countOfTie[label[]]++;
-//                    return;
-//                }
-//            }
-//            if (size < k) {
-//                dists[size] = dist;
-//                size++;
-//                int cur = size - 1;
-//                while (cur > 0) {
-//                    int fa = (cur - 1) >> 1;
-//                    if (dists[cur] <= dists[fa]) break;
-//                    swap(dists[fa], dists[cur]);
-//                    cur = fa;
-//                }
-//                countOfLabel[label[pi]]++;
-//            }
-//        }
-//
-//        T top() {
-//            return dists[0];
-//        }
-//    };
-
-
     template <class Visitor>
-    void knnTraverse(Node& curNode, int from, int to, const typename Matrix::Row& p, Visitor& visitor) {
-        T d = p.dist2(points.row(curNode.vp));
+    void knnTraverse(const Node& curNode, index_t from, index_t to, const typename Matrix::Row& p, Visitor& visitor) {
         if (curNode.isLeaf()) {
-            for (int i = from; i < to; ++i) visitor.push(order[i].pi, d);
+            for (index_t i = from; i < to; ++i) {
+                visitor.visit({order[i].pointId, p.dist2(points.row(order[i].pointId))});
+            }
         } else {
+            value_t d = p.dist2(points.row(curNode.vp));
+            visitor.visit({curNode.vp, d});
             ++from;
-            int mid = from + (to - from >> 1);
-            visitor.push(curNode.vp, d);
-            if (d <= curNode.radius1) {
+            index_t mid = from + (to - from >> 1);
+            value_t d1 = abs(curNode.radius1 - d);
+            value_t d2 = abs(curNode.radius2 - d);
+            bool leftFirst = d1 <= d2;
+            if (leftFirst) {
                 knnTraverse(*curNode.lchd, from, mid, p, visitor);
-                if (!visitor.full() || visitor.top() <= curNode.radius2 - d)
+                if (visitor.useful(d2))
                     knnTraverse(*curNode.rchd, mid, to, p, visitor);
-            } else if (d >= curNode.radius2) {
-                    knnTraverse(*curNode.rchd, mid, to, p, visitor);
-                if (!visitor.full() || visitor.top() <= d - curNode.radius1)
+            } else {
+                knnTraverse(*curNode.rchd, mid, to, p, visitor);
+                if (visitor.useful(d1))
                     knnTraverse(*curNode.lchd, from, mid, p, visitor);
             }
         }
     }
 
-    void knn(int* index, T* data, int k, const typename Matrix::Row& p) {
+    vector<Neighbor> knn(index_t k, const typename Matrix::Row& p, bool useAll = false) {
         assert(0 < k && k < points.nrow());
-        KnnVisitor visitor(index, data, k, -1);
+        KnnVisitor visitor(k, -1, useAll);
         knnTraverse(root, 0, points.nrow(), p, visitor);
+        vector<Neighbor> r = move(visitor.nearest);
+        sort(r.begin(), r.end());
+        return move(r);
     }
 
-    void knn(int* index, T* data, int k, int pi) {
+    vector<Neighbor> knn(index_t k, index_t pi, bool useAll = false) {
         assert(0 < k && k < points.nrow());
         assert(0 <= pi && pi < points.nrow());
-        KnnVisitor visitor(index, data, k, pi);
+        KnnVisitor visitor(k, pi, useAll);
         knnTraverse(root, 0, points.nrow(), points.row(pi), visitor);
+        vector<Neighbor> r = move(visitor.nearest);
+        sort(r.begin(), r.end());
+        cout << "visited = " << visitor.getVisited() << " of " << points.nrow() << endl;
+        cout << r.size() << endl;
+        return move(r);
     }
+
 };
 #endif //NLP_CUDA_VPTREE_H

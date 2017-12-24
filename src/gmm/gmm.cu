@@ -9,7 +9,7 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
-#include <cu_common_headers.cu>
+#include "../utils/cutils.cu"
 #include <thrust/device_vector.h>
 #include <cmath>
 #include <fstream>

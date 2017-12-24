@@ -3,7 +3,7 @@
 //
 
 #include <Rcpp.h>
-#include <common_headers.h>
+#include "../utils/utils.h"
 #include <tsne/quadtree.h>
 
 using namespace Rcpp;

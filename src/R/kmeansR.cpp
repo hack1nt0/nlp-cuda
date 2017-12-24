@@ -2,67 +2,82 @@
 // Created by DY on 17-8-28.
 //
 
-#include <Rcpp.h>
-#include <kmeans.h>
-#include <vector>
-using namespace Rcpp;
+#include "Rutils.h"
+#include <kmeans/kmeans.h>
 
-Rcpp::List kmeans(S4 dtm, int k, int max_itr, int seed, int topics) {
-    IntegerVector dims = as<IntegerVector>(dtm.slot("Dim"));
-    int rows = dims[0];
-    int cols = dims[1];
-    IntegerVector row_ptr = as<IntegerVector>(dtm.slot("p"));
-    IntegerVector index = as<IntegerVector>(dtm.slot("j"));
-    NumericVector data = as<NumericVector>(dtm.slot("x"));
-    int nnz = data.size();
-    List dimnames = as<List>(dtm.slot("Dimnames"));
-    CharacterVector terms = as<CharacterVector>(dimnames.at(1));
 
-    IntegerVector belong(rows);
-    NumericMatrix mean(cols, k);
-    initKmeans(mean.begin(), k, data.begin(), index.begin(), row_ptr.begin(), rows, cols, nnz, seed);
-    std::vector<double> dist = kmeans(mean.begin(), belong.begin(), data.begin(), index.begin(), row_ptr.begin(), rows, cols, nnz, k, max_itr, seed);
+//struct Model {
+//
+//
+//    Model(index_t rows, index_t cols, index_t k) : center(k, cols), ss(rows, 1), cluster(rows, 1), size(k, 1), itr(0) {}
+//};
 
-    CharacterMatrix topicMatix(topics, k);
-    std::vector<int> order(cols);
-    for (int i = 0; i < cols; ++i) order[i] = i;
-    struct Comp {
-        const NumericMatrix::Column& mean;
 
-        Comp(const NumericMatrix::Column& mean) : mean(mean) {}
-
-        bool operator()(int a, int b) const {
-            return mean[a] > mean[b];
-        }
-    };
-    for (int i = 0; i < k; ++i) {
-        sort(order.begin(), order.end(), Comp(mean.column(i)));
-        for (int j = 0; j < topics; ++j) {
-            topicMatix.at(j, i) = terms[order[j]];
-        }
-    }
-    IntegerVector capacity(k);
-    for (int i = 0; i < k; ++i) capacity[i] = 0;
-    for (int i = 0; i < rows; ++i) capacity[belong[i]]++;
-    return Rcpp::List::create(
-            Rcpp::Named("mean") = mean,
-            Rcpp::Named("capacity") = capacity,
-            Rcpp::Named("belong") = belong,
-            Rcpp::Named("knn") = dist,
-            Rcpp::Named("topics") = topicMatix);
-}
-
-RcppExport SEXP kmeans(SEXP dtmSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP seedSEXP, SEXP topicsSEXP) {
+RcppExport SEXP kmeans_matrix(SEXP trainSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP nstartSEXP, SEXP methodSEXP, SEXP seedSEXP, SEXP tolSEXP, SEXP verboseSEXP)  {
     BEGIN_RCPP
-        Rcpp::RObject rcpp_result_gen;
-        Rcpp::RNGScope rcpp_rngScope_gen;
-        Rcpp::traits::input_parameter<S4>::type dtm(dtmSEXP);
-        Rcpp::traits::input_parameter<int>::type k(kSEXP);
-        Rcpp::traits::input_parameter<int>::type max_itr(max_itrSEXP);
-        Rcpp::traits::input_parameter<int>::type seed(seedSEXP);
-        Rcpp::traits::input_parameter<int>::type topics(topicsSEXP);
-        rcpp_result_gen = Rcpp::wrap(kmeans(dtm, k, max_itr, seed, topics));
-        return rcpp_result_gen;
+//        Rcpp::RObject rcpp_result_gen;
+//        Rcpp::RNGScope rcpp_rngScope_gen;
+//        typedef KMeans<dm_type> km_t;
+//        dm_type train = toDenseMatrix(trainSEXP);
+//        int k = as<int>(kSEXP);
+//        int max_itr = as<int>(max_itrSEXP);
+//        int nstart = as<int>(nstartSEXP);
+////        string method = as<string>(methodSEXP);
+//        double tol = as<double>(tolSEXP);
+//        int seed = as<int>(seedSEXP);
+//        bool verbose = as<bool>(verboseSEXP);
+//        Rcpp::as()
+//
+//        NumericMatrix meanR(k, train.ncol());
+//        km_t::Mean mean(meanR.nrow(), meanR.ncol(), meanR.begin(), false);
+//        NumericVector costR(max_itr);
+//        km_t::Cost cost(max_itr, 1, costR.begin(), false);
+//        IntegerVector belongR(train.nrow());
+//        km_t::Belong belong(train.nrow(), 1, belongR.begin(), false);
+//        IntegerVector sizeR(k);
+//        km_t::Size size(k, 1, sizeR.begin(), false);
+//
+//        km_t::go(mean, cost, belong, size, train, max_itr, seed, tol, verbose);
+//
+//        return List::create(
+//            Named("mean") = meanR,
+//            Named("cost") = costR,
+//            Named("belong") = belongR,
+//            Named("size") = sizeR
+//        );
     END_RCPP
 }
 
+RcppExport SEXP kmeans_dtm(SEXP trainSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP nstartSEXP, SEXP methodSEXP, SEXP seedSEXP, SEXP tolSEXP, SEXP verboseSEXP)  {
+    BEGIN_RCPP
+        Rcpp::RObject rcpp_result_gen;
+        Rcpp::RNGScope rcpp_rngScope_gen;
+        typedef KMeans<sm_type> km_t;
+        sm_type train = toSparseMatrix(trainSEXP);
+        int k = as<int>(kSEXP);
+        int max_itr = as<int>(max_itrSEXP);
+        int nstart = as<int>(nstartSEXP);
+        double tol = as<double>(tolSEXP);
+        int seed = as<int>(seedSEXP);
+        bool verbose = as<bool>(verboseSEXP);
+
+        NumericMatrix center(k, train.ncol());
+        IntegerVector cluster(train.nrow());
+        NumericVector ss(train.nrow());
+        IntegerVector size(k);
+
+        km_t::Model model(train.nrow(), train.ncol(), k, center.begin(), cluster.begin(), ss.begin(), size.begin());
+
+        km_t::go(model, train, k, max_itr, seed, tol, verbose);
+
+        return List::create(
+            Named("centers") = center,
+            Named("ss") = ss,
+            Named("cluster") = cluster,
+            Named("size") = size,
+            Named("loss") = model.loss,
+            Named("changed") = model.changed,
+            Named("itr") = model.itr
+        );
+    END_RCPP
+}

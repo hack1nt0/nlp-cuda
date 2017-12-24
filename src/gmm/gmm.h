@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_GMM_H
 #define NLP_CUDA_GMM_H
 
-#include <common_headers.h>
+#include "../utils/utils.h"
 
 template <typename T>
 void gmmInit(T* h_mean, T* h_covar, T* h_class_weight,

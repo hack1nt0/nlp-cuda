@@ -4,7 +4,7 @@
 
 #include <Rcpp.h>
 #include <tsne/tsne.h>
-#include <ds/DocumentTermMatrix.h>
+#include <matrix/DocumentTermMatrix.h>
 #include <matrix/DenseMatrix.h>
 
 using namespace Rcpp;

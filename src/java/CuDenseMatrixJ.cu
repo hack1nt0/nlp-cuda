@@ -6,8 +6,8 @@
 #define NLP_CUDA_DENSE_MATRIX_J_H
 
 #include "CuDenseExprJ.cu"
-#include <common_headers.h>
-#include <cu_common_headers.cu>
+#include "../utils/utils.h"
+#include "../utils/cutils.cu"
 
 namespace JNI {
 

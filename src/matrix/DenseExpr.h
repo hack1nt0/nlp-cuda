@@ -7,262 +7,131 @@
 
 #include "functors.h"
 
-template<typename T, typename ETYPE>
+template<typename V, typename I, typename ETYPE>
 struct DenseExpr {
-    inline const ETYPE& self(void) const {
+    inline const ETYPE& self() const {
         return *static_cast<const ETYPE *>(this);
     }
-
 };
 
-template <class OP, class LHS, typename T>
-struct UnaryDenseExpr : public DenseExpr<T, UnaryDenseExpr<OP, LHS, T> > {
+template <class OP, class LHS, typename V, typename I>
+struct UnaryDenseExpr : DenseExpr<V, I, UnaryDenseExpr<OP, LHS, V, I> > {
     LHS lhs;
 
     UnaryDenseExpr(const LHS &lhs) : lhs(lhs) {}
 
-    inline T at(int r, int c) const {
+    inline V at(I r, I c) const {
         return OP::apply(lhs.at(r, c));
     }
 
-    inline T at(int i) const {
+    inline V at(I i) const {
         return OP::apply(lhs.at(i));
     }
 
-    inline int nrow() const { return lhs.nrow(); }
+    inline I nrow() const { return lhs.nrow(); }
 
-    inline int ncol() const { return lhs.ncol(); }
+    inline I ncol() const { return lhs.ncol(); }
 };
 
-template <class LHS, typename T>
-UnaryDenseExpr<Sqrt<T>, LHS, T> sqrt(const DenseExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnaryDenseExpr<Sqrt<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnaryDenseExpr<Sqrt<V>, LHS, V, I> sqrt(const DenseExpr<V, I, LHS> &e) {
+    return UnaryDenseExpr<Sqrt<V>, LHS, V, I>(e.self());
 }
 
-template <class LHS, typename T>
-UnaryDenseExpr<Log<T>, LHS, T> log(const DenseExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnaryDenseExpr<Log<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnaryDenseExpr<Log<V>, LHS, V, I> log(const DenseExpr<V, I, LHS> &e) {
+    return UnaryDenseExpr<Log<V>, LHS, V, I>(e.self());
 }
 
-template <class LHS, typename T>
-UnaryDenseExpr<Log2<T>, LHS, T> log2(const DenseExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return UnaryDenseExpr<Log2<T>, LHS, T>(e);
+template <class LHS, typename V, typename I>
+UnaryDenseExpr<Sign<V>, LHS, int, I> sign(const DenseExpr<V, I, LHS> &e) {
+    return UnaryDenseExpr<Sign<V>, LHS, int, I>(e.self());
 }
 
-template <class OP, class LHS, typename T>
-struct IntUnaryDenseExpr : public DenseExpr<T, IntUnaryDenseExpr<OP, LHS, T> > {
-    LHS lhs;
-
-    IntUnaryDenseExpr(const LHS &lhs) : lhs(lhs) {}
-
-    inline int at(int r, int c) const {
-        return OP::apply(lhs.at(r, c));
-    }
-
-    inline int at(int i) const {
-        return OP::apply(lhs.at(i));
-    }
-};
-
-template <class LHS, typename T>
-IntUnaryDenseExpr<Sign<T>, LHS, T> sign(const DenseExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    return IntUnaryDenseExpr<Sign<T>, LHS, T>(e);
-}
-
-template <typename T, class LHS>
-struct TransDenseExpr : public DenseExpr<T, TransDenseExpr<T, LHS> > {
+template <class LHS, typename V, typename I>
+struct TransDenseExpr : public DenseExpr<V, I, TransDenseExpr<LHS, V, I> > {
     const LHS& lhs;
 
     TransDenseExpr(const LHS &lhs) : lhs(lhs) {}
 
-    inline T at(int r, int c) const {
+    inline V at(I r, I c) const {
         return lhs.at(c, r);
     }
 };
 
-template <class OP, class LHS, typename T>
-//struct ZipDenseExpr : public BaseDenseExpr<T, ZipDenseExpr<OP, LHS, T> > {
-struct ZipDenseExpr : public DenseExpr<T, ZipDenseExpr<OP, LHS, T> > {
-    LHS lhs;
-    int index;
-    int rows;
-    int cols;
-    T zero;
-
-    ZipDenseExpr(const LHS &lhs, int index, int rows, int cols, T zero) : lhs(lhs), index(index), rows(rows), cols(cols),
-                                                              zero(zero) {
-        assert(index == 0 || index == 1);
-    }
-
-    inline T at(int r, int c) const {
-        return lhs.at(c, r);
-    }
-
-    inline T at(int i) const {
-        T result = zero;
-        switch (index) {
-            case 0:
-                for (int r = 0; r < rows; ++r) result = OP::apply(result, lhs.at(r, i));
-                break;
-            case 1:
-                for (int c = 0; c < cols; ++c) result = OP::apply(result, lhs.at(i, c));
-                break;
-        }
-        return result;
-    }
+template <typename LHS, typename V, typename I> inline
+TransDenseExpr<LHS, V, I> operator~(const DenseExpr<V, I, LHS> &lhs) {
+    return TransDenseExpr<LHS, V, I>(lhs.self());
 };
 
-template <class LHS, typename T>
-ZipDenseExpr<Add<T>, LHS, T> sum(const DenseExpr<T, LHS> &lhs, int index) {
-    const LHS &e = lhs.self();
-    return ZipDenseExpr<Add<T>, LHS, T>(e, index, e.rows, e.cols, (T)0);
-};
-
-template <class LHS, typename T>
-T sum(const DenseExpr<T, LHS> &lhs) {
-    const LHS &e = lhs.self();
-    T s = 0;
-    for (int i = 0; i < e.nrow() * e.ncol(); ++i) s += e.at(i);
-    return s;
-};
-
-template <typename T, class LHS> inline
-TransDenseExpr<T, LHS> operator~(const DenseExpr<T, LHS> &lhs) {
-    return TransDenseExpr<T, LHS>(lhs.self());
-};
-
-template <class OP, class LHS, class RHS, typename T>
-struct BinDenseExpr : public DenseExpr<T, BinDenseExpr<OP, LHS, RHS, T> > {
+template <class OP, class LHS, class RHS, typename V, typename I>
+struct BinDenseExpr : public DenseExpr<V, I, BinDenseExpr<OP, LHS, RHS, V, I> > {
     LHS lhs;
     RHS rhs;
 
     BinDenseExpr(const LHS &lhs, const RHS &rhs) : lhs(lhs), rhs(rhs) {}
 
-    inline T at(int r, int c) const {
+    inline V at(I r, I c) const {
         return OP::apply(lhs.at(r, c), rhs.at(r, c));
     }
 
-    inline T at(int i) const {
+    inline V at(I i) const {
         return OP::apply(lhs.at(i), rhs.at(i));
     }
 
-    inline int nrow() const { return lhs.nrow(); }
+    inline I nrow() const { return lhs.nrow(); }
 
-    inline int ncol() const { return lhs.ncol(); }
+    inline I ncol() const { return lhs.ncol(); }
 };
 
-template <typename T, class LHS, class RHS> inline
-BinDenseExpr<Add<T>, LHS, RHS, T> operator+(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BinDenseExpr<Add<T>, LHS, RHS, T>(lhs.self(), rhs.self());
+template <class LHS, class RHS, typename LV, typename RV, typename I> inline
+BinDenseExpr<Add<LV, RV>, LHS, RHS, LV, I> operator+(const DenseExpr<LV, I, LHS> &lhs, const DenseExpr<RV, I, RHS> &rhs) {
+    return BinDenseExpr<Add<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
 };
 
-template <typename T, class LHS, class RHS> inline
-BinDenseExpr<Sub<T>, LHS, RHS, T> operator-(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BinDenseExpr<Sub<T>, LHS, RHS, T>(lhs.self(), rhs.self());
+template <class LHS, class RHS, typename LV, typename RV, typename I> inline
+BinDenseExpr<Sub<LV, RV>, LHS, RHS, LV, I> operator-(const DenseExpr<LV, I, LHS> &lhs, const DenseExpr<RV, I, RHS> &rhs) {
+    return BinDenseExpr<Sub<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
 };
 
-template <typename T>
-struct ConstDenseExpr : public DenseExpr<T, ConstDenseExpr<T> > {
-    T v;
-    ConstDenseExpr(T v) : v(v) {}
+template <class LHS, class RHS, typename LV, typename RV, typename I> inline
+BinDenseExpr<Mul<LV, RV>, LHS, RHS, LV, I> operator*(const DenseExpr<LV, I, LHS> &lhs, const DenseExpr<RV, I, RHS> &rhs) {
+    return BinDenseExpr<Mul<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
 
-    inline T at(int r, int c) const {
+template <class LHS, class RHS, typename LV, typename RV, typename I> inline
+BinDenseExpr<Div<LV, RV>, LHS, RHS, LV, I> operator/(const DenseExpr<LV, I, LHS> &lhs, const DenseExpr<RV, I, RHS> &rhs) {
+    return BinDenseExpr<Div<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
+
+template <class LHS, class RHS, typename V, typename I>
+BinDenseExpr<Eq<V>, LHS, RHS, bool, I> operator==(const DenseExpr<V, I, LHS> &lhs, const DenseExpr<V, I, RHS> &rhs) {
+    return BinDenseExpr<Eq<V>, LHS, RHS, bool, I>(lhs.self(), rhs.self());
+};
+
+template <typename V, typename I>
+struct ConstDenseExpr : public DenseExpr<V, I, ConstDenseExpr<V, I> > {
+    V v;
+    ConstDenseExpr(V v) : v(v) {}
+
+    inline V at(I r, I c) const {
         return v;
     }
 
-    inline T at(int i) const {
+    inline V at(I i) const {
         return v;
     }
 };
 
+/** Shrunk Ops **/
 
-
-template <class LHS, typename T>
-BinDenseExpr<Add<T>, LHS, ConstDenseExpr<T>, T> operator+(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Add<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
+template <class LHS, typename V, typename I> inline
+V sum(const DenseExpr<V, I, LHS> &lhs) {
+    const LHS& e = lhs.self();
+    V r = 0;
+    for (I i = 0; i < e.ncol(); ++i)
+        for (I j = 0; j < e.nrow(); ++j) r += e.at(j, i);
+    return r;
 };
 
-template <class LHS, typename T>
-BinDenseExpr<Sub<T>, LHS, ConstDenseExpr<T>, T> operator-(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Sub<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
-
-template <class LHS, typename T>
-UnaryDenseExpr<Neg<T>, LHS, T> operator-(const DenseExpr<T, LHS> &lhs) {
-    return UnaryDenseExpr<Neg<T>, LHS, T>(lhs.self());
-};
-
-template <class LHS, typename T>
-BinDenseExpr<Mul<T>, LHS, ConstDenseExpr<T>, T> operator*(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Mul<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
-
-template <class LHS, class RHS, typename T>
-BinDenseExpr<Mul<T>, LHS, RHS, T> operator*(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BinDenseExpr<Mul<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-BinDenseExpr<Div<T>, LHS, ConstDenseExpr<T>, T> operator/(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Div<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
-
-template <class LHS, class RHS, typename T>
-BinDenseExpr<Div<T>, LHS, RHS, T> operator/(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BinDenseExpr<Div<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-BinDenseExpr<Pow<T>, LHS, ConstDenseExpr<T>, T> operator^(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Pow<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
-
-template <class LHS, class RHS, typename T>
-BinDenseExpr<Max<T>, LHS, RHS, T> maximum(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BinDenseExpr<Max<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-BinDenseExpr<Max<T>, LHS, ConstDenseExpr<T>, T> maximum(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BinDenseExpr<Max<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
-
-template <class OP, class LHS, class RHS, typename T>
-struct BoolBinDenseExpr : public DenseExpr<T, BoolBinDenseExpr<OP, LHS, RHS, T> > {
-    LHS lhs;
-    RHS rhs;
-
-    BoolBinDenseExpr(const LHS &lhs, const RHS &rhs) : lhs(lhs), rhs(rhs) {}
-
-    inline bool at(int r, int c) const {
-        return OP::apply(lhs.at(r, c), rhs.at(r, c));
-    }
-
-    inline bool at(int i) const {
-        return OP::apply(lhs.at(i), rhs.at(i));
-    }
-
-    inline int nrow() const { return lhs.nrow(); }
-
-    inline int ncol() const { return lhs.ncol(); }
-};
-
-template <class LHS, class RHS, typename T>
-BoolBinDenseExpr<Eq<T>, LHS, RHS, T> operator==(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BoolBinDenseExpr<Eq<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, class RHS, typename T>
-BoolBinDenseExpr<NEq<T>, LHS, RHS, T> operator!=(const DenseExpr<T, LHS> &lhs, const DenseExpr<T, RHS> &rhs) {
-    return BoolBinDenseExpr<NEq<T>, LHS, RHS, T>(lhs.self(), rhs.self());
-};
-
-template <class LHS, typename T>
-BoolBinDenseExpr<LessThan<T>, LHS, ConstDenseExpr<T>, T> operator<(const DenseExpr<T, LHS> &lhs, T rhs) {
-    return BoolBinDenseExpr<LessThan<T>, LHS, ConstDenseExpr<T>, T>(lhs.self(), ConstDenseExpr<T>(rhs));
-};
 #endif //NLP_CUDA_EXPRESSION_TEMPLATES_H
