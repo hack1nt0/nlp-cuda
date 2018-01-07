@@ -7,7 +7,7 @@
 
 #include "CuDenseExpr.cu"
 #include "CuDenseMatrixHeader.cu"
-#include "DenseMatrix.h"
+#include "CDenseMatrix.h"
 
 /*
  * Row major, Shadow copy
@@ -19,7 +19,7 @@ CuDenseMatrix<T> CuDenseMatrix<T>::operator~() {
         transposeDevice(*this);
         checkCudaErrors(cudaDeviceSynchronize());
     } else {
-        DenseMatrix<T> h_matrix(this->rows, this->cols);
+        CDenseMatrix<T> h_matrix(this->rows, this->cols);
         h_matrix = *this;
         h_matrix.t();
         *this = h_matrix;
@@ -28,7 +28,7 @@ CuDenseMatrix<T> CuDenseMatrix<T>::operator~() {
 };
 
 template <typename T>
-CuDenseMatrix<T>& CuDenseMatrix<T>::operator=(const DenseMatrix<T>& o) {
+CuDenseMatrix<T>& CuDenseMatrix<T>::operator=(const CDenseMatrix<T>& o) {
     assert(this->rows * this->cols == o.rows * o.cols);
     this->rows = o.rows;
     this->cols = o.cols;

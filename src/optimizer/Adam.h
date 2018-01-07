@@ -5,7 +5,7 @@
 #ifndef NLP_CUDA_ADAM_H
 #define NLP_CUDA_ADAM_H
 
-#include <matrix/DenseMatrix.h>
+#include <matrix/CDenseMatrix.h>
 
 template <typename T, class Objective>
 struct Adam {
@@ -16,8 +16,8 @@ struct Adam {
     T beta2PowT = 1;
     T epsilon = 1e-8;
     T lr = 0.01;
-    DenseMatrix<T> momentum1;
-    DenseMatrix<T> momentum2;
+    CDenseMatrix<T> momentum1;
+    CDenseMatrix<T> momentum2;
 
     Adam(Objective& f, T lr = 0.01, T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8) :
         f(f),
@@ -29,7 +29,7 @@ struct Adam {
         momentum2 = T(0);
     }
 
-    void update(DenseMatrix<T>& original, const DenseMatrix<T>& grad) {
+    void update(CDenseMatrix<T>& original, const CDenseMatrix<T>& grad) {
         momentum1 = momentum1 * beta1 + grad * (1. - beta1);
         momentum2 = momentum2 * beta2 + grad * grad * (1. - beta2);
         beta1PowT *= beta1;
@@ -59,8 +59,8 @@ struct Adam {
 
     void solve(int maxItr, bool verbose = false) {
         for (int itr = 0; itr < maxItr; ++itr) {
-            DenseMatrix<T>& grad = f.getGrad();
-            DenseMatrix<T>& param = f.getParam();
+            CDenseMatrix<T>& grad = f.getGrad();
+            CDenseMatrix<T>& param = f.getParam();
             update(param, f.caculateGrad(param));
             if (verbose) {
                 if (itr == 0) printf("itr\tf(x)\n");

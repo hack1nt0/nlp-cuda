@@ -6,6 +6,9 @@
 ############################################################################
 
 # collect source files
-include_directories("../kmeans")
 
-CUDA_ADD_EXECUTABLE(gmm main.cpp main.cu gmm.cu)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+
+ADD_EXECUTABLE(gmm main.cpp ../utils/utils.cpp)
+target_link_libraries(gmm mkl_intel_lp64 mkl_tbb_thread mkl_core iomp5 pthread m dl)
+

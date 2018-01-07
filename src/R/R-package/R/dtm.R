@@ -65,14 +65,16 @@ topwords. <- function(x) {
     topwords[order(topwords$idf, topwords$word, decreasing = T),]
 }
 
-scale.dtm <- function(x, byrow = T, L = 0L) {
-    .Call(.scale.dtm, x, byrow, L)
+scale.dtm <- function(x, L = 2L, byrow = T) {
+    .Call(.scale.dtm, x, L, byrow)
 }
 
 is.dtm <- function(x) { return(class(x) == "dtm") }
 
-test.dtm <- function(xs) {
-    .Call(.test.dtm, xs)
+test.dtm <- function(x) {
+    y <- 1
+    z = 2
+    .Call(.test.dtm, x, y, z)
 }
 
 tk <- function(texts,

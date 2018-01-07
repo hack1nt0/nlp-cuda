@@ -72,7 +72,7 @@ SEXP knn_dtm(SEXP trainSEXP, SEXP testSEXP, SEXP clSEXP,
     END_RCPP
 }
 
-//typedef DenseMatrix<double, int> dm_type;
+//typedef CDenseMatrix<double, int> dm_type;
 //typedef VpTreeX<dm_type>         vptree_type;
 
 //RcppExport

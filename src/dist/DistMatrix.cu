@@ -6,7 +6,7 @@
 #include <cu_common_headers.cu>
 #include "matrix/SparseMatrix.h"
 #include "matrix/CuSparseMatrix.cu"
-#include "matrix/DenseMatrix.h"
+#include "matrix/CDenseMatrix.h"
 #include "dist.h"
 
 template <typename T>

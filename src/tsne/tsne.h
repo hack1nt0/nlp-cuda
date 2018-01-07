@@ -14,11 +14,11 @@ struct TsneObjective {
     vector<T> nns;// Actual Nearest Neighbors
     int size;
     int dim;
-    DenseMatrix<T>& Y;
-    DenseMatrix<T> grad;
+    CDenseMatrix<T>& Y;
+    CDenseMatrix<T> grad;
 
 
-    typedef QuadTree<DenseMatrix<T> > QuadTreeT;
+    typedef QuadTree<CDenseMatrix<T> > QuadTreeT;
     struct RepulsiveVisitor {
         QuadTreeT* visited;
         T* point;
@@ -52,7 +52,7 @@ struct TsneObjective {
     };
     vector<RepulsiveVisitor> repVisitor;
 
-    TsneObjective(DenseMatrix<T>& Y, const InputType& X, int dim, int perplexity, T theta, int seed, bool verbose) :
+    TsneObjective(CDenseMatrix<T>& Y, const InputType& X, int dim, int perplexity, T theta, int seed, bool verbose) :
         X(X),
         P(X.nrow(), X.nrow(), X.nrow() * perplexity * 3),
         size(X.nrow() * dim),
@@ -148,7 +148,7 @@ struct TsneObjective {
       return T(1) / (T(1) + QijZ);
     }
 
-    T operator()(const DenseMatrix<T>& Y) {
+    T operator()(const CDenseMatrix<T>& Y) {
         double KL = 0;
         double Z = 0;
         for (int i = 0; i < X.nrow(); ++i) Z += repVisitor[i].Z;
@@ -170,7 +170,7 @@ struct TsneObjective {
         return T(KL);
     }
 
-    const DenseMatrix<T>& caculateGrad(const DenseMatrix<T>& Y) {
+    const CDenseMatrix<T>& caculateGrad(const CDenseMatrix<T>& Y) {
         QuadTreeT quadTree(Y);
         grad = 0.;
 
@@ -196,11 +196,11 @@ struct TsneObjective {
     }
 
 
-    DenseMatrix<T>& getParam() {
+    CDenseMatrix<T>& getParam() {
         return Y;
     }
 
-    DenseMatrix<T>& getGrad() {
+    CDenseMatrix<T>& getGrad() {
         return grad;
     }
 
@@ -210,15 +210,15 @@ struct TsneObjective {
 };
 
 template <typename T = double, class InputType = SparseMatrix<T> >
-void tsne(DenseMatrix<T>& Y, const InputType& X, int dim = 2, int maxItr = 10, int perplexity = 30, T theta = 0.3, int seed = 1, bool verbose = true) {
+void tsne(CDenseMatrix<T>& Y, const InputType& X, int dim = 2, int maxItr = 10, int perplexity = 30, T theta = 0.3, int seed = 1, bool verbose = true) {
     TsneObjective<T, InputType> f(Y, X, dim, perplexity, theta, seed, verbose);
     Adam<T, TsneObjective<T, InputType> > optimizer(f);
     optimizer.solve(maxItr, verbose);
 };
 
 template <typename T = double, class InputType = SparseMatrix<T> >
-DenseMatrix<T> tsne(const InputType& X, int dim = 2, int maxItr = 10, int perplexity = 30, T theta = 0.3, int seed = 1, bool verbose = true) {
-    DenseMatrix<T> Y(X.nrow(), dim);
+CDenseMatrix<T> tsne(const InputType& X, int dim = 2, int maxItr = 10, int perplexity = 30, T theta = 0.3, int seed = 1, bool verbose = true) {
+    CDenseMatrix<T> Y(X.nrow(), dim);
     tsne(Y, X, dim, maxItr, perplexity, theta, seed, verbose);
     return Y;
 };

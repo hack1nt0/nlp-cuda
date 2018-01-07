@@ -20,6 +20,7 @@ struct Knn {
     typedef vector<Neighbor>          NeighborList;
     typedef vector<NeighborList>      NeighborListList;
     typedef VpTreeX<Mat>              vptree_t;
+    typedef DistanceUtils<value_t, index_t> DU;
 
     struct Comparator {
         inline bool operator()(const Neighbor& lhs, const Neighbor& rhs) { return lhs.first < rhs.first; }
@@ -56,7 +57,7 @@ struct Knn {
             auto terow = test.row(te);
             Heap heap(k, useAll);
             for (index_t tr = 0; tr < train.nrow(); ++tr) {
-                heap.visit({dist(terow, train.row(tr), dist_t), tr});
+                heap.visit({DU::dist(terow, train.row(tr), dist_t), tr});
             }
             r[te] = move(heap.getData());
             sort(r[te].begin(), r[te].end());

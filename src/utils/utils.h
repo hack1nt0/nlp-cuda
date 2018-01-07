@@ -76,39 +76,33 @@ void print(const T* array, int size) {
     cout << ']';
 }
 
-const // It is a const object...
-class nullptr_t
-{
-public:
-    template<class T>
-    inline operator T*() const // convertible to any type of null non-member pointer...
-    { return 0; }
-
-    template<class C, class T>
-    inline operator T C::*() const   // or any type of null member pointer...
-    { return 0; }
-
-private:
-    void operator&() const;  // Can't take address of nullptr
-
-} null = {};
-
 struct CpuTimer {
-    clock_t time;
-    float duration;
+//
+//    clock_t time;
+//    float duration;
+//
+//    void start() {
+//        time = clock();
+//    }
+//
+//    void stop() {
+//        duration = (float)(clock() - time)/ CLOCKS_PER_SEC * 1000;
+//    }
+//
+//    float elapsed() {
+//        stop();
+//        return duration;
+//    }
+  public:
+    CpuTimer() : beg_(clock_::now()) {}
+    void start() { beg_ = clock_::now(); }
+    double elapsed() const {
+        return std::chrono::duration_cast<second_>(clock_::now() - beg_).count(); }
 
-    void start() {
-        time = clock();
-    }
-
-    void stop() {
-        duration = (float)(clock() - time)/ CLOCKS_PER_SEC * 1000;
-    }
-
-    float elapsed() {
-        stop();
-        return duration;
-    }
+  private:
+    typedef std::chrono::high_resolution_clock clock_;
+    typedef std::chrono::duration<double, std::ratio<1> > second_;
+    std::chrono::time_point<clock_> beg_;
 };
 
 template <typename T>

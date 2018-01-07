@@ -5,14 +5,14 @@
 #include <utils.h>
 #include <matrix/DocumentTermMatrix.h>
 #include <ostream>
-#include <matrix/DenseMatrix.h>
+#include <matrix/CDenseMatrix.h>
 #include "VpTree.h"
 #include "VpTreeX.h"
 #include "knn.h"
 
 int main(int argc, char* args[]) {
     int n = atoi(args[1]);
-//    typedef DenseMatrix<> dm_t;
+//    typedef CDenseMatrix<> dm_t;
     typedef SparseMatrix<> sm_t;
     typedef Knn<sm_t>        knn_t;
 //    typedef VpTreeX<sm_t>  vpt_t;

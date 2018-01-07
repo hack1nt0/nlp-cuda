@@ -5,7 +5,7 @@
 #include <Rcpp.h>
 #include <tsne/tsne.h>
 #include <matrix/DocumentTermMatrix.h>
-#include <matrix/DenseMatrix.h>
+#include <matrix/CDenseMatrix.h>
 
 using namespace Rcpp;
 
@@ -25,7 +25,7 @@ RcppExport SEXP tsne(SEXP dtmSEXP, SEXP dimSEXP,
         int seed = as<int>(seedSEXP);
         int verbose = as<bool>(verboseSEXP);
         Rcpp::NumericMatrix rY(dim, dtm.nrow());
-        DenseMatrix<double> Y(rY.begin(), dtm.nrow(), dim);
+        CDenseMatrix<double> Y(rY.begin(), dtm.nrow(), dim);
         tsne(Y, dtm, dim, maxItr, perplexity, theta, seed, verbose);
         cout << "hi" << endl;
         rY = Rcpp::transpose(rY);

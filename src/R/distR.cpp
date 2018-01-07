@@ -2,62 +2,56 @@
 // Created by DY on 17-9-17.
 //
 
-#include <Rcpp.h>
-#include <matrix/dist/DistMatrix.h>
-#include <matrix/DocumentTermMatrix.h>
+#include <dist/dist.h>
+#include "Rutils.h"
 
-using namespace Rcpp;
-
-typedef Rcpp::List Document;
-typedef DocumentTermMatrix<double, int, Document> dtm_type;
-
-//Rcpp::NumericVector dist_dtm(S4 dtm, bool verbose) {
-//    IntegerVector dims = as<IntegerVector>(dtm.slot("Dim"));
-//    int rows = dims[0];
-//    int cols = dims[1];
-//    IntegerVector row_ptr = as<IntegerVector>(dtm.slot("p"));
-//    IntegerVector index = as<IntegerVector>(dtm.slot("j"));
-//    NumericVector data = as<NumericVector>(dtm.slot("x"));
-//    int nnz = data.size();
-//    SparseMatrix<double> M( rows, cols, nnz, row_ptr.begin(), index.begin(), data.begin());
-//    /*
-//     * capacity of D = rows - 1 + ... + 1 = rows * (rows - 1) / 2
-//     */
-//    NumericVector D(rows * (rows - 1) / 2);
-//    DistMatrix<double> distance(D.begin(), M, verbose);
-//    D.attr("class") = "dist";
-//    D.attr("Size") = rows;
-//    D.attr("Diag") = false;
-//    D.attr("Upper") = false;
-//    D.attr("method") = "euclidean";
-//    D.attr("call") = NULL;
-//    return D;
-//}
-
-RcppExport SEXP dist_dtm(SEXP xpSEXP, SEXP sSEXP, SEXP tSEXP, SEXP methodSEXP, SEXP verboseSEXP) {
+RcppExport SEXP dist_dtm(SEXP xSEXP, SEXP ySEXP, SEXP metricSEXP, SEXP verboseSEXP) {
     BEGIN_RCPP
-        Rcpp::RObject rcpp_result_gen;
-        Rcpp::RNGScope rcpp_rngScope_gen;
-        Rcpp::XPtr<dtm_type> ptr(xpSEXP);
-        IntegerVector s(sSEXP);
-        IntegerVector t(tSEXP);
+        sm_type sm = toSparseMatrix(xSEXP);
+        unsigned long long rows = sm.nrow();
+        CharacterVector metric(metricSEXP);
+        int kind = metric[0] == "euclidean" ? 1 : 0;
         bool verbose = as<bool>(verboseSEXP);
-        NumericMatrix r(s.size(), t.size());
-        CharacterVector colnames(t.size());
-        CharacterVector rownames(s.size());
-        if (s!=R_NilValue) {
-            for (int i = 0; i < s.size(); ++i)
-                for (int j = 0; j < t.size(); ++j)
-                    r.at(i, j) = ptr->row(s[i]).dist2(ptr->row(t[j]));
-            for (int i = 0; i < s.size(); ++i) rownames[i] = to_string(s[i]);
-            for (int i = 0; i < t.size(); ++i) colnames[i] = to_string(t[i]);
-            r.attr("dimnames") = List::create(rownames, colnames);
-            return r;
-        } else {
-            return R_NilValue;
-        }
+        /*
+         * capacity of D = rows - 1 + ... + 1 = rows * (rows - 1) / 2
+         */
+        NumericVector D(rows * (rows - 1) / 2);
+        DistMatrix<double, unsigned long long> distMatrix(D.begin(), rows);
+        dist(distMatrix, sm, kind, verbose);
+        D.attr("class") = "dist";
+        D.attr("Size") = rows;
+        D.attr("Diag") = false;
+        D.attr("Upper") = false;
+        D.attr("method") = "euclidean";
+        D.attr("call") = NULL;
+        return D;
     END_RCPP
 }
+
+//RcppExport SEXP dist_dtm(SEXP xpSEXP, SEXP sSEXP, SEXP tSEXP, SEXP methodSEXP, SEXP verboseSEXP) {
+//    BEGIN_RCPP
+//        Rcpp::RObject rcpp_result_gen;
+//        Rcpp::RNGScope rcpp_rngScope_gen;
+//        Rcpp::XPtr<dtm_type> ptr(xpSEXP);
+//        IntegerVector s(sSEXP);
+//        IntegerVector t(tSEXP);
+//        bool verbose = as<bool>(verboseSEXP);
+//        NumericMatrix r(s.size(), t.size());
+//        CharacterVector colnames(t.size());
+//        CharacterVector rownames(s.size());
+//        if (s!=R_NilValue) {
+//            for (int i = 0; i < s.size(); ++i)
+//                for (int j = 0; j < t.size(); ++j)
+//                    r.at(i, j) = ptr->row(s[i]).dist2(ptr->row(t[j]));
+//            for (int i = 0; i < s.size(); ++i) rownames[i] = to_string(s[i]);
+//            for (int i = 0; i < t.size(); ++i) colnames[i] = to_string(t[i]);
+//            r.attr("dimnames") = List::create(rownames, colnames);
+//            return r;
+//        } else {
+//            return R_NilValue;
+//        }
+//    END_RCPP
+//}
 
 //RcppExport SEXP index_dist(SEXP xp, SEXP rowSEXP, SEXP colSEXP) {
 //    BEGIN_RCPP

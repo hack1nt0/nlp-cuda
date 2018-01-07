@@ -6,7 +6,7 @@
 #define NLP_CUDA_CUMATRIX_HEADER_H
 
 template <typename T>
-struct DenseMatrix;
+struct CDenseMatrix;
 
 #include "CuDenseExpr.cu"
 
@@ -64,7 +64,7 @@ struct CuDenseMatrix : CuDenseExpr<T, CuDenseMatrix<T> > {
         return *this;
     }
 
-    CuDenseMatrix<T>& operator=(const DenseMatrix<T>& o);
+    CuDenseMatrix<T>& operator=(const CDenseMatrix<T>& o);
 
     CuDenseMatrix<T>& operator=(T value) {
         fillDevice(data, getNnz(), CuDenseConstExpr<T>(value));

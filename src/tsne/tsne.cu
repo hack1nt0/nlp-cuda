@@ -97,7 +97,7 @@ void tsne(double* Y, int* landmarks, int newRows, int newCols,
     double eps = pow(2., -52.);
     double logPerplexity = log(perplexity);
     double tol = 1e-6;
-    DenseMatrix<double> P(newRows, newRows);
+    CDenseMatrix<double> P(newRows, newRows);
     double INF = 3e+300;
     vector<double> perp(newRows);
     for (int i = 0; i < newRows; ++i) {
@@ -162,7 +162,7 @@ void tsne(double* Y, int* landmarks, int newRows, int newCols,
         if (i + 1 < newRows * newCols)
             Y[i + 1] = sqrt(-2. * log(u1)) * sin(2. * 3.14 * u2) * init_var + init_mean;
     }
-    DenseMatrix<double> h_Y(Y, newRows, newCols);
+    CDenseMatrix<double> h_Y(Y, newRows, newCols);
     Mat* d_Y[3];
     for (int i = 0; i < 3; ++i) {
         d_Y[i] = new Mat(newRows, newCols);

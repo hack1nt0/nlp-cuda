@@ -1,0 +1,265 @@
+shu.map <- GetMap(center = c(40.742634, -74.246215),          zoom=17)
+Sys.setenv(http_proxy="http://127.0.0.1:9743")
+shu.map <- GetMap(center = c(40.742634, -74.246215),          zoom=17)
+plot(c(1,2))
+iris
+class(iris)
+c(1, "a")
+c(1, c(1))
+c(1, c(1, 2))
+list(1, c(1, 2))
+$list(1, c(1, 2))
+l <- list(1, c(1, 2))
+l$1
+l$2
+l <- list(a = 1, b = c(1, 2))
+l
+l$a
+l$b
+class(l)
+mode(l)
+names(l)
+cbind(1,2)
+rbind(1,2)
+rbind(1,l)
+l
+fix(l)
+l
+edit(l)
+ls()
+edit(hcd)
+object
+order
+a <- c(1,2,5.3,6,-2,4)
+a(1)
+a
+a[1]
+a[3]
+class(a)
+mode(a)
+edit(hc)
+hc
+str(hc)
+mode(hc)
+mtcars
+fix(hc)
+l
+l$c <- 3
+l
+list()
+l <- list()
+l
+l$merge <- hc$merge
+l
+l$height <- hc$height
+l
+l$order <- hc$order
+l$class <- class(hc)
+l
+hc
+str(hc)
+attr(hc)
+fix(hc)
+l$labels <- hc$labels
+l
+plot(l)
+str(l)
+attr
+attr(l, 'class') <- class(hc)
+str(l)
+plot(l)
+str(hc)
+rm(l$class)
+class(hc$merge)
+v <- c(1,2,3,4)
+shape(v)
+shapes(v)
+v
+class(v)
+dim(v) <- (2,2)
+dim(v) <- c(2,2)
+v
+class(v)
+v
+dim(v) <- c(1, 4)
+v
+matrix(v, nrow=2, ncol=2)
+matrix(v, nrow=2, ncol=2, byrow=TRUE)
+hc$merge
+plot(hc)
+plot(hc, hang=-2)
+plot(hc, hang=-20)
+plot(hc, hang=-1)
+plot(hcd)
+hc
+str(hc)
+iris
+?kmeans
+fit <- kmeans(iris, 3)
+iris[c(1)]
+iris[c(1, 2, 3)]
+iris[c(1, 2, 3, 4)]
+is.na(iris[c(1, 2, 3, 4)]).sum()
+is.na(iris[c(1, 2, 3, 4)])
+fit <- kmeans(iris[c(1, 2, 3, 4)], 3)
+fit
+str(fit)
+library(cluster)
+clusplot(iris, fit$cluster)
+??clusplot
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=2, lines=0)
+clusplot(iris, fit$cluster)
+str(iris)
+attr(iris)
+attributes(iris)
+data <- iris
+attr(data, 'row.names') <- iris$Species
+attr(data, 'row.names') <- as.chariris$Species
+attr(data, 'row.names') <- as.character(iris$Species)
+data
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=2, lines=0)
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=2, lines=2)
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=1, lines=2)
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=3, lines=2)
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=4, lines=2)
+clusplot(iris, fit$cluster, color=TRUE, shade=TRUE, #
+  	labels=5, lines=2)
+clusplot(iris, fit$cluster)
+package?fpc
+norm
+norm()
+norm(1)
+?norm
+rand
+?rnd
+?rand
+unif
+unifom
+??download.file
+download.file('www.baidu.com', 'test')
+download.file()
+download.file('http://1.163.223.189:33333/h/e648b42e407d192662b304b06480e528c95f302b-139317-1280-720-jpg/keystamp=1498295100-312788b6a1;fileindex=53413490;xres=1280/20170620002313791_1.jpg')
+download.file('http://1.163.223.189:33333/h/e648b42e407d192662b304b06480e528c95f302b-139317-1280-720-jpg/keystamp=1498295100-312788b6a1;fileindex=53413490;xres=1280/20170620002313791_1.jpg', 'test.jpg')
+getwd()
+source('~/plot_jpeg.R')
+download.hentai.image('https://e-hentai.org/s/829041e7cd/1078824-1')
+data(iris)
+plot(iris)
+getwd()
+source('plot_jpeg.R')
+download.hentai.image('https://e-hentai.org/s/04b21da467/410202-1', output.dir='m-lady/')
+source('plot_jpeg.R')
+download.hentai.image('https://e-hentai.org/s/6893518a1f/66022-1', output.dir='m-lady-2/')
+cat('hello','world')
+source
+source('~/r4ds/crawler.R')
+download.hentai.image('https://e-hentai.org/s/5fb621d001/1096838-1', output.dir='~/support-1/')
+source
+source("~/r4ds/crawler.R")
+download.hentai.image('https://e-hentai.org/s/0e61ce1e9f/1099425-1', output.dir='~/art pack/')
+library(Matrix)
+i <- c(1,3:8)              # row indices#
+j <- c(2,9,6:10)           # col indices#
+x <- 7 * (1:7)             # values#
+A <- sparseMatrix(i, j, x = x)#
+A
+A["i"]
+str(A)
+A[["i"]]
+A[1]
+A[3]
+A[2]
+?Matrix
+A.slot("i")
+A$i
+A@i
+a <- as.matrix(c(1:100), 10)
+a
+str(a)
+dim(a)
+dim(A)
+str(A)
+A
+??sparseMatrix
+??spMatrix
+i <- c(1,3:8)              # row indices#
+j <- c(2,9,6:10)           # col indices#
+x <- 7 * (1:7)             # values#
+A <- sparseMatrix(i, j, x = x, giveCsparse=F)#
+A
+install.packages('RcppArmadillo')
+library(Rcpp)
+Rcpp::
+Rcpp:::loadModule
+Rcpp:::Cxx0xFlags
+Rcpp:::Cxx0xFlags()
+Rcpp:::CxxFlags()
+Rcpp:::LdFlags()
+Rcpp:::LdFlags
+Rcpp:::loadRcppModules
+Rcpp:::loadRcppModules()
+Rcpp:::loadRcppClass()
+Rcpp:::loadModule()
+Rcpp
+?Rcpp
+source('~/r4ds/crawler.R')
+download.hentai.image('https://e-hentai.org/s/95623ca418/794173-1', output.dir='~/hundred-game-5/')
+library(RCudaNlp)
+dtm <- read_dtm('/Users/dy/TextUtils/data/train/spamsms.dtm')
+str(dtm)
+dist.large
+library(devtools)
+reload(inst('RCudaNlp'))
+str(dtm)
+d <- dist.large(dtm)
+str(d)
+library(RCudaNlp)
+test.dtm()
+ls())
+ls()
+fix
+fix(Boston)
+data(Boston)
+fix(iris)
+rm(list=ls())
+ls()
+save.image()
+read
+setwd('~/nlp-cuda')
+getwd()
+ls()
+load('.RData')
+ls()
+str(opt)
+library(corn)
+fix(summary(opt, dict=colnames(d3)))
+summary(opt, dict=colnames(d3))
+summary(opt, dict=colnames(d3))
+fix(summary(opt, dict=colnames(d3)))
+edit(summary(opt, dict=colnames(d3)))
+typeof(opt)
+class(opt)
+edit
+methods(edit)
+edit.default
+edit.matrix
+edit
+?edit
+usage(edit)
+vi
+ls()
+m
+vi(m)
+vi(t)
+xedit(m)
+edit(summary(opt, dict=colnames(d3)))
+edit(edit)
+library(utils)
+utils::edit.default
+edit(summary(opt, dict=colnames(d3)))

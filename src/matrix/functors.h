@@ -91,8 +91,9 @@ class Div {
 
 template<typename LV, typename RV>
 struct Pow {
-    inline static LV apply(LV a, RV b) { return a ^ b; }
+    inline static LV apply(LV a, RV b) { return pow(a, b); }
 };
+
 template<typename T>
 class Eq {
 public:
@@ -112,6 +113,16 @@ class LessThan {
   public:
     inline
     static bool apply(T a, T b) {return a < b; }
+};
+
+template<typename T>
+struct Max {
+    inline static T apply(T a, T b) { return std::max(a, b); }
+};
+
+template<typename T>
+struct Min {
+    inline static T apply(T a, T b) { return std::min(a, b); }
 };
 
 #endif //NLP_CUDA_FUNCTORS_H

@@ -38,3 +38,12 @@ S4 toDtmR(dtm_type& dtm) {
     r.slot("d.len") = IntegerVector(dtm.nterm.begin(), dtm.nterm.end());
     return r;
 }
+
+S4 toDtmR(sm_type& sm) {
+    S4 r("dtm");
+    r.slot("Dim") = IntegerVector::create(sm.nrow(), sm.ncol());
+    r.slot("p") = IntegerVector(sm.getCscPtr(), sm.getCscPtr() + sm.ncol() + 1);
+    r.slot("i") = IntegerVector(sm.getCscInd(), sm.getCscInd() + sm.getNnz());
+    r.slot("x") = NumericVector(sm.getCscVal(), sm.getCscVal() + sm.getNnz());
+    return r;
+}

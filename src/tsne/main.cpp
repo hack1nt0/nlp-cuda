@@ -26,7 +26,7 @@ int main() {
     double theta = 0.3;
     int maxItr = 1000;
     int seed = 1;
-    DenseMatrix<double> Y = tsne(dtm, dim, maxItr, perplexity, theta, seed, verbose);
+    CDenseMatrix<double> Y = tsne(dtm, dim, maxItr, perplexity, theta, seed, verbose);
     Y.println();
 
     return 0;

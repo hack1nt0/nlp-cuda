@@ -29,21 +29,43 @@ string toHexString(const T& t) {
     }
     return r;
 }
-/*
-struct A {
-    A() {}
-    A(const A& o) { cout << "A(const A& o)" << endl; }
-    A(A&& o) { cout << "A(A&& o)" << endl; }
-    A& operator=(const A& o) { cout << "=(const A& o)" << endl; return *this; }
-    A& operator=(A&& o) { cout << "=(A&& o)" << endl; return *this; }
+
+struct X {
+	int x;
+	
+    X() { cout << "A()" << endl; }
+    X(int x) : x(x) { cout << "A(x)" << endl; }
+   
+    X(const X& o) { cout << "A(const A& o)" << endl; }
+    X(X&& o) { cout << "A(A&& o)" << endl; }
+    X& operator=(const X& o) { cout << "=(const A& o)" << endl; return *this; }
+    X& operator=(X&& o) { cout << "=(A&& o)" << endl; return *this; }
 
     void operator()(int i) { cout << "A()" << endl; }
-};*/
+	X clone() { X x(1); x.x = 10; return x; }
+};
+
+#include <dlfcn.h>
  
 int main() {
-    int n = 10;
-    int* a = new int[n];
-    memset(a, +0, sizeof(int) * n);
-    for (int i = 0; i < n; ++i) cout << a[i] << endl;
+	
+//    dlopen("/Users/dy/nlp-cuda/src/R/R-package/inst/libs/libcorn.so", RTLD_NOW);
+//    void* dll = dlopen("q.so", RTLD_NOW);
+//	const char* e;
+//    if ((e = dlerror()) != NULL) throw runtime_error(e);
+//	else cout << "LOADED SUCCESSFULLY" << endl;
+//	void* qaddr = dlsym(dll, "q");
+//	if (qaddr == NULL) throw runtime_error("q() NOT FOUND");
+//	((void(*)())qaddr)();
+//	dlclose(dll);
+
+    unsigned int a = 1;
+    cout << typeid(a).name() << endl;
+    float b = 1;
+    cout << typeid(b).name() << endl;
+    double c = 1;
+    cout << typeid(c).name() << endl;
+    long d = 1;
+    cout << typeid(d).name() << endl;
     return 0;
 }

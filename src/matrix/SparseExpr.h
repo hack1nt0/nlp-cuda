@@ -96,6 +96,16 @@ BinSparExpr<Div<LV, RV>, LHS, RHS, LV, I> operator/(const SparExpr<LV, I, LHS> &
     return BinSparExpr<Div<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
 };
 
+template <class LHS, class RHS, typename LV, typename RV, typename I> inline
+BinSparExpr<Pow<LV, RV>, LHS, RHS, LV, I> operator^(const SparExpr<LV, I, LHS> &lhs, const SparExpr<RV, I, RHS> &rhs) {
+    return BinSparExpr<Pow<LV, RV>, LHS, RHS, LV, I>(lhs.self(), rhs.self());
+};
+
+template <class LHS, typename LV, typename I> inline
+BinSparExpr<Pow<LV, LV>, LHS, ConstSparExpr<LV, I>, LV, I> operator^(const SparExpr<LV, I, LHS> &lhs, LV v) {
+    return BinSparExpr<Pow<LV, LV>, LHS, ConstSparExpr<LV, I>, LV, I>(lhs.self(), ConstSparExpr<LV, I>(v));
+};
+
 template <class LHS, class RHS, typename V, typename I>
 BinSparExpr<NEq<V>, LHS, RHS, bool, I> operator!=(const SparExpr<V, I, LHS> &lhs, const SparExpr<V, I, RHS> &rhs) {
     return BinSparExpr<NEq<V>, LHS, RHS, bool, I>(lhs.self(), rhs.self());

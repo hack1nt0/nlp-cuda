@@ -5,9 +5,9 @@
 #ifndef NLP_CUDA_KLOBJECTIVE_H
 #define NLP_CUDA_KLOBJECTIVE_H
 
-#include <matrix/DenseMatrix.h>
+#include <matrix/CDenseMatrix.h>
 
-template <typename T = double, class Matrix = DenseMatrix<T> >
+template <typename T = double, class Matrix = CDenseMatrix<T> >
 struct KLObjective {
     const Matrix& P;
     int size;
@@ -59,7 +59,7 @@ struct KLObjective {
  * ==> Q = P
  * TODO sparse matrix
  */
-template <typename T = double, class Matrix = DenseMatrix<T> >
+template <typename T = double, class Matrix = CDenseMatrix<T> >
 struct KLObjectiveLagrangian {
     const Matrix& P;
     int size;

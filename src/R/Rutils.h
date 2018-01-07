@@ -12,7 +12,7 @@ using namespace Rcpp;
 
 typedef Rcpp::List                                Document;
 typedef SparseMatrix<double, int>                 sm_type;
-typedef DenseMatrix<double, int>                  dm_type;
+typedef CDenseMatrix<double, int>                  dm_type;
 typedef DocumentTermMatrix<double, int, Document> dtm_type;
 
 sm_type toSparseMatrix(const SEXP& e);
@@ -22,5 +22,7 @@ dm_type toDenseMatrix(const SEXP& e);
 vector<Document> toWordListList(const SEXP& e);
 
 S4 toDtmR(dtm_type& dtm);
+
+S4 toDtmR(sm_type& sm);
 
 #endif //NLP_CUDA_RUTILS_H

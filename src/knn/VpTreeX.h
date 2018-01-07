@@ -15,6 +15,7 @@ struct VpTreeX {
     typedef typename Matrix::value_t  value_t;
     typedef typename Matrix::index_t  index_t;
     typedef typename Matrix::Row      Row;
+    typedef DistanceUtils<value_t, index_t> DU;
     vector<index_t> vp;
     vector<value_t> radius1;
     vector<value_t> radius2;
@@ -30,6 +31,7 @@ struct VpTreeX {
     vector<Neighbor> order;
     index_t leafSize;
     int dist_t;
+
 
     inline bool isLeaf(const index_t& i) const { return to[i] - from[i] <= leafSize || lc[i] == rc[i]; }
 
@@ -62,7 +64,7 @@ struct VpTreeX {
         ++from;
         Row vpRow = points.row(vp[cur]);
         for (index_t i = from; i < to; ++i) {
-            order[i].first = dist(vpRow, points.row(order[i].second), dist_t);
+            order[i].first = DU::dist(vpRow, points.row(order[i].second), dist_t);
         }
         sort(order.begin() + from, order.begin() + to); //todo
         index_t mid = from + (to - from >> 1);
@@ -115,11 +117,11 @@ struct VpTreeX {
 //        cerr << depth << ' ' << from[cur] << ' ' << to[cur] << ' ' << to[cur] - from[cur] << ' ' << lc[cur] << ' ' << rc[cur] << endl;
         if (isLeaf(cur)) {
             for (int i = from[cur]; i < to[cur]; ++i) {
-                neighborHeap.visit({dist(p, points.row(order[i].second), dist_t), order[i].second});
+                neighborHeap.visit({DU::dist(p, points.row(order[i].second), dist_t), order[i].second});
             }
             return;
         }
-        value_t d = dist(p, points.row(vp[cur]), dist_t);
+        value_t d = DU::dist(p, points.row(vp[cur]), dist_t);
         neighborHeap.visit({d, vp[cur]});
         value_t llb = max(lb, d - radius1[cur]);
         value_t rlb = max(lb, radius2[cur] - d);

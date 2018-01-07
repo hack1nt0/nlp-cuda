@@ -1,6 +1,6 @@
 #include "tsne.h"
 #include <iostream>
-#include <matrix/DenseMatrix.h>
+#include <matrix/CDenseMatrix.h>
 #include <matrix/DocumentTermMatrix.h>
 #include <fstream>
 
@@ -14,7 +14,7 @@ int main() {
     int seed;
     cin >> newRows >> newCols >> perplexity >> max_itr >> seed;
     cout << newRows << '\t' << newCols << '\t' << perplexity << '\t' << max_itr << '\t' << seed << endl;
-    DenseMatrix<double> Y(newRows, newCols);
+    CDenseMatrix<double> Y(newRows, newCols);
     vector<int> landmarks(newRows);
     ifstream fin("/Users/dy/TextUtils/data/train/spamsms.dtm");
     DocumentTermMatrix dtm(fin);
