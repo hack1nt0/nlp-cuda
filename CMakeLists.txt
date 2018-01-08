@@ -15,7 +15,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/lib")
 
-find_package(CUDA REQUIRED)
+set(CMAKE_CXX_FLAGS "-std=c++11")
+
+find_package(CUDA)
 #link_libraries(${CUDA_cusparse_LIBRARY})
 #link_libraries(${CUDA_CUBLAS_LIBRARIES})
 
@@ -27,15 +29,13 @@ find_package(CUDA REQUIRED)
 #find_package(BLAS REQUIRED)
 
 if (APPLE)
-    #set(MACOSX_RPATH on)
     include_directories(/opt/intel/mkl/include /opt/intel/tbb/include)
     link_directories(/opt/intel/lib /opt/intel/mkl/lib /opt/intel/tbb/lib)
-#    set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH} /opt/intel/mkl/include")
-#    set(MKL_LINKER_FLAGS "-L/opt/intel/lib -Wl,-rpath,/opt/intel/lib -L/opt/intel/mkl/lib -Wl,-rpath,/opt/intel/mkl/lib -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl")
-#    set(MKL_LINKER_FLAGS "-lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl")
-else(APPLE)
-    message(FATAL_ERROR "MKL NOT FOUND")
+else() #Linux
+    include_directories(/opt/intel/mkl/include /opt/intel/tbb/include)
+    link_directories(/opt/intel/lib/intel64 /opt/intel/mkl/lib/intel64 /opt/intel/tbb/lib/intel64/gcc4.7)
 endif()
+
 
 if(CUDA_FOUND)
     if (APPLE)
@@ -44,7 +44,6 @@ if(CUDA_FOUND)
     # add -Wextra compiler flag for gcc compilations
     if (UNIX)
         set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wextra -lcublas -lcusparse")
-        set(CMAKE_CXX_FLAGS "-std=c++11")
     endif (UNIX)
     # add debugging to CUDA NVCC flags.  For NVidia's NSight tools.
     # set(CUDA_NVCC_FLAGS_DEBUG ${CUDA_NVCC_FLAGS_DEBUG} "-G")
@@ -57,7 +56,7 @@ include_directories(src/utils)
 include_directories(src)
 
 add_subdirectory (src/optimizer)
-add_subdirectory (src/java)
+#add_subdirectory (src/java)
 add_subdirectory (src/matrix)
 add_subdirectory (src/dist)
 add_subdirectory (src/tsne)

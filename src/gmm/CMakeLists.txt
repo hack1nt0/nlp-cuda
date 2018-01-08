@@ -10,5 +10,5 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 ADD_EXECUTABLE(gmm main.cpp ../utils/utils.cpp)
-target_link_libraries(gmm mkl_intel_lp64 mkl_tbb_thread mkl_core iomp5 pthread m dl)
+target_link_libraries(gmm mkl_intel_lp64 mkl_intel_thread mkl_core iomp5 pthread m dl)
 

@@ -9,6 +9,7 @@
 #include "CDenseMatrix.h"
 #include "RDenseMatrix.h"
 #include <mkl.h>
+#include <functional>
 
 template <typename V, typename I>
 struct MatrixUtils {

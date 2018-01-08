@@ -9,4 +9,4 @@
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
-CUDA_ADD_EXECUTABLE(dist main.cpp ../utils/utils.cpp)
+ADD_EXECUTABLE(dist main.cpp ../utils/utils.cpp)

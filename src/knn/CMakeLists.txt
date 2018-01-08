@@ -8,4 +8,4 @@
 # collect source files
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-CUDA_ADD_EXECUTABLE(vptree main.cpp)
+ADD_EXECUTABLE(vptree main.cpp)
