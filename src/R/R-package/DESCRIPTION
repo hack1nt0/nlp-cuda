@@ -13,5 +13,6 @@ Imports:
 Depends:
     ggplot2,
     Matrix,
+    irlba,
     jiebaR
 

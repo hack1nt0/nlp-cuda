@@ -25,6 +25,8 @@ struct DenseVector : DenseExpr<V, I, DenseVector<V, I> > {
 
     DenseVector(index_t ld, index_t nnz, value_t *value) : nnz(nnz), ld(ld), value(value) {}
 
+    DenseVector(index_t nnz, value_t *value) : nnz(nnz), ld(1), value(value) {}
+
     inline index_t nrow() const { return ld == 1 ? nnz : 1; }
     inline index_t ncol() const { return ld == 1 ? 1 : nnz; }
     inline index_t getNnz() const { return nnz; }

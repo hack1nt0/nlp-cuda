@@ -1,7 +1,7 @@
 
 find_package(R REQUIRED)
 include_directories(${R_INCLUDE_DIR})
-#link_directories(${R_LIB_DIRS})
+link_directories(${R_LIB_DIRS})
 message(${RCPP_CXX_FLAGS})
 set(CMAKE_CXX_FLAGS "-std=c++11 ${RCPP_CXX_FLAGS} -fopenmp")
 #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libstdc++ -Wl,-headerpad_max_install_names -undefined dynamic_lookup -single_module -multiply_defined suppress -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation")
@@ -21,9 +21,9 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${RCPP_LINKER_FLAGS}
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/src/R/R-package/inst/libs")
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 #CUDA_ADD_LIBRARY(rcudanlp SHARED gmmR.cpp kmeansR.cpp distR.cpp tsneR.cpp quadtreeR.cpp ../gmm/gmm.cu ../kmeans/kmeans.cu ../tsne/tsne.cu )
-ADD_LIBRARY(corn SHARED ../utils/utils.cpp Rutils.cpp dtmR.cpp knnR.cpp kmeansR.cpp distR.cpp gmmR.cpp)
+ADD_LIBRARY(corn SHARED ../utils/utils.cpp dtmR.cpp knnR.cpp kmeansR.cpp distR.cpp gmmR.cpp)
 TARGET_LINK_LIBRARIES(corn tbb)
-target_link_libraries(corn mkl_intel_lp64 mkl_tbb_thread mkl_core iomp5 pthread m dl)
+target_link_libraries(corn mkl_intel_lp64 mkl_intel_thread mkl_core pthread m dl)
 
 ADD_CUSTOM_TARGET(install.corn
         COMMAND R CMD INSTALL R-package

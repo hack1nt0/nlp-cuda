@@ -1,0 +1,39 @@
+---
+title: "gp"
+author: "dy"
+date: "2018/2/7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data
+
+$\mathcal{D_{train}} = (X_{n*d}, Y_{n*1})$ with $x_i$ is a point of grids of grid search, i.e., the space of **hyperparameter**, $y_i$ the **performance** of corresponding learning model(classification, regression or clustering). 
+
+## Model
+
+$$ f \thicksim \mathcal{GP}(0, \mathbb{K}) $$
+$$ Y_i \thicksim \mathcal{N}(f(X_i),\sigma) $$
+$$ LL \propto log|\Sigma| + (Y - 0) ^ T \Sigma ^ {-1} (Y - 0) $$
+$$ \Sigma = \begin{bmatrix}
+. & . & . \\
+. & \mathbb{K}(X_i, X_j) & . \\
+. & . & .
+\end{bmatrix}
+$$ 
+
+## Parameter Estimate
+
+$$ \hat\Sigma_{ij} = \frac{1}{n} \sum\limits_{k=1}^d (Y_{ik} - 0)(Y_{jk} - 0) $$
+
+### ARD-SE
+
+$$ \mathbb{K}(X_i, X_j) = \alpha e ^ {-\sum\limits_{k=1}^{d} \theta_k (X_{ik} - X_{jk})^2} + \sigma $$
+
+Let $\Theta = (\alpha, \theta, \sigma) $
+$$ \frac{\partial LL}{\partial \Theta} = $$
+
+$$ \hat\mu = \frac{sum(\Sigma^{-1} Y)}{sum(\Sigma^{-1})} $$

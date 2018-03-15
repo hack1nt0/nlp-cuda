@@ -7,14 +7,14 @@
 
 int main(int argc, char* args[]) {
 //    typedef vector<string> doc_type;
-//    typedef DocumentTermMatrix<double, int, doc_type> dtm_type;
+//    typedef DocumentTermMatrix<double, int, doc_type> dtm_t;
 //    int n = 4;
 //    vector<doc_type> documents(n);
 //    documents[0] = {"A", "B"};
 //    documents[1] = {"B", "C"};
 //    documents[2] = {"E", "F"};
 //    documents[3] = {"A", "B"};
-//    dtm_type dtm(n, documents.data(), false);
+//    dtm_t dtm(n, documents.data(), false);
 //    dtm.print();
 
     typedef CDenseMatrix<double, int> dm_t;

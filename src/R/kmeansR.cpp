@@ -17,8 +17,8 @@ RcppExport SEXP kmeans_matrix(SEXP trainSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP
     BEGIN_RCPP
 //        Rcpp::RObject rcpp_result_gen;
 //        Rcpp::RNGScope rcpp_rngScope_gen;
-//        typedef KMeans<dm_type> km_t;
-//        dm_type train = toDenseMatrix(trainSEXP);
+//        typedef KMeans<dm_t> km_t;
+//        dm_t train = toDenseMatrix(trainSEXP);
 //        int k = as<int>(kSEXP);
 //        int max_itr = as<int>(max_itrSEXP);
 //        int nstart = as<int>(nstartSEXP);
@@ -52,39 +52,34 @@ RcppExport SEXP kmeans_dtm(SEXP trainSEXP, SEXP kSEXP, SEXP max_itrSEXP, SEXP me
     BEGIN_RCPP
         Rcpp::RObject rcpp_result_gen;
         Rcpp::RNGScope rcpp_rngScope_gen;
-        typedef KMeans<sm_type> km_t;
-        sm_type train = toSparseMatrix(trainSEXP);
-        IntegerVector k(kSEXP);
+        typedef KMeans<sm_t> km_t;
+        sm_t train = RU::toSparseMatrix(trainSEXP);
+        int k = as<int>(kSEXP);
         int max_itr = as<int>(max_itrSEXP);
         IntegerVector seed(seedSEXP);
         double tol = as<double>(tolSEXP);
         bool verbose = as<bool>(verboseSEXP);
-        List r(k.size());
-        for (int i = 0; i < k.size(); ++i) {
-            NumericMatrix center(k[i], train.ncol());
-            IntegerVector cluster(train.nrow());
-            NumericVector ss(train.nrow());
-            IntegerVector size(k[i]);
-            km_t::Model model(train.nrow(), train.ncol(), k[i], center.begin(), cluster.begin(), ss.begin(), size.begin());
-            km_t::train(model, train, k[i], max_itr, seed[0], tol, verbose);
-            if (seed.size() > 1) {
-                km_t::Model tmpModel(train.nrow(), train.ncol(), k[i]);
-                for (int j = 1; j < seed.size(); ++j) {
-                    km_t::train(tmpModel, train, k[i], max_itr, seed[j], tol, verbose);
-                    if (tmpModel.loss[model.itr - 1] < model.loss[model.itr - 1]) model = tmpModel;
-                }
+        NumericMatrix center(k, train.ncol());
+        IntegerVector cluster(train.nrow());
+        NumericVector ss(train.nrow());
+        IntegerVector size(k);
+        km_t::Model model(train.nrow(), train.ncol(), k, center.begin(), cluster.begin(), ss.begin(), size.begin());
+        km_t::train(model, train, k, max_itr, seed[0], tol, verbose);
+        if (seed.size() > 1) {
+            km_t::Model tmpModel(train.nrow(), train.ncol(), k);
+            for (int j = 1; j < seed.size(); ++j) {
+                km_t::train(tmpModel, train, k, max_itr, seed[j], tol, verbose);
+                if (tmpModel.loss[model.itr - 1] < model.loss[model.itr - 1]) model = tmpModel;
             }
-            List ri = List::create(
-                Named("centers") = center,
-                Named("cluster") = cluster,
-                Named("loss") = model.loss,
-                Named("changed") = model.changed,
-                Named("itr") = model.itr
-            );
-            ri.attr("class") = "xmeans";
-            r[i] = ri;
         }
-        r.attr("class") = "xmeanss";
+        List r = List::create(
+            Named("centers") = center,
+            Named("cluster") = cluster,
+            Named("loss") = model.loss,
+            Named("changed") = model.changed,
+            Named("itr") = model.itr
+        );
+        r.attr("class") = "xmeans";
         return r;
     END_RCPP
 }

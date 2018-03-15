@@ -1,6 +1,6 @@
 exportPattern("^[[:alpha:]]+")
 useDynLib(libcorn,
-          .new.dtm = new_dtm,
+          C_new_dtm = new_dtm,
           .scale.dtm = scale_dtm,
           .knn.dtm = knn_dtm,
           .test.dtm = test_dtm,

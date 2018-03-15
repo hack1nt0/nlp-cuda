@@ -6,7 +6,7 @@
 #include <knn/VpTreeX.h>
 #include <knn/knn.h>
 
-typedef Knn<sm_type>               knn_t;
+typedef Knn<sm_t>               knn_t;
 typedef knn_t::Neighbor            Neighbor;
 typedef knn_t::NeighborList        NeighborList;
 typedef knn_t::NeighborListList    NeighborListList;
@@ -33,8 +33,8 @@ SEXP knn_dtm(SEXP trainSEXP, SEXP testSEXP, SEXP clSEXP,
     BEGIN_RCPP
         Rcpp::RObject rcpp_result_gen;
         Rcpp::RNGScope rcpp_rngScope_gen;
-        sm_type train = toSparseMatrix(trainSEXP);
-        sm_type test  = toSparseMatrix(testSEXP);
+        sm_t train = RU::toSparseMatrix(trainSEXP);
+        sm_t test  = RU::toSparseMatrix(testSEXP);
         int k = as<int>(kSEXP);
         int dist_t = 0;
         String dtype = CharacterVector(dtypeSEXP)[0];
@@ -72,22 +72,22 @@ SEXP knn_dtm(SEXP trainSEXP, SEXP testSEXP, SEXP clSEXP,
     END_RCPP
 }
 
-//typedef CDenseMatrix<double, int> dm_type;
-//typedef VpTreeX<dm_type>         vptree_type;
+//typedef CDenseMatrix<double, int> dm_t;
+//typedef VpTreeX<dm_t>         vptree_type;
 
 //RcppExport
 //SEXP vptree(SEXP trainSEXP, SEXP leafSizeSEXP, SEXP seedSEXP) {
 //    NumericMatrix trainR(trainSEXP);
 //    int leafSize = as<int>(leafSizeSEXP);
 //    int seed = as<int>(seedSEXP);
-//    dm_type train(trainR.nrow(), trainR.cols(), trainR.begin(), false);
+//    dm_t train(trainR.nrow(), trainR.cols(), trainR.begin(), false);
 //    XPtr<vptree_type> xp(new vptree_type(train, leafSize, seed), true);
 //    return xp;
 //}
 //
 //SEXP vptree_matrix(SEXP testSEXP, SEXP kSEXP, SEXP useAllSEXP, SEXP vptreeXpSEXP) {
 //    NumericMatrix testR(testSEXP);
-//    dm_type test(testR.nrow(), testR.ncol(), testR.begin(), false);
+//    dm_t test(testR.nrow(), testR.ncol(), testR.begin(), false);
 //    int k = as<int>(kSEXP);
 //    bool useAll = as<bool>(useAllSEXP);
 //    XPtr<vptree_type> vptreeXp(vptreeXpSEXP);

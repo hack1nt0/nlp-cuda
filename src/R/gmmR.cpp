@@ -10,8 +10,8 @@ RcppExport SEXP gmm_dtm(SEXP xSEXP, SEXP kSEXP, SEXP maxItrSEXP, SEXP tolSEXP, S
     BEGIN_RCPP
         Rcpp::RObject rcpp_result_gen;
         Rcpp::RNGScope rcpp_rngScope_gen;
-        sm_type x = toSparseMatrix(xSEXP);
-        typedef MixtureModel<sm_type> mxm_t;
+        sm_t x = RU::toSparseMatrix(xSEXP);
+        typedef MixtureModel<sm_t> mxm_t;
         int rows = x.nrow();
         int cols = x.ncol();
         int k = as<int>(kSEXP);

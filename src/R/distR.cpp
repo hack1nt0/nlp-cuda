@@ -7,7 +7,7 @@
 
 RcppExport SEXP dist_dtm(SEXP xSEXP, SEXP ySEXP, SEXP metricSEXP, SEXP verboseSEXP) {
     BEGIN_RCPP
-        sm_type sm = toSparseMatrix(xSEXP);
+        sm_t sm = RU::toSparseMatrix(xSEXP);
         unsigned long long rows = sm.nrow();
         CharacterVector metric(metricSEXP);
         int kind = metric[0] == "euclidean" ? 1 : 0;
@@ -32,7 +32,7 @@ RcppExport SEXP dist_dtm(SEXP xSEXP, SEXP ySEXP, SEXP metricSEXP, SEXP verboseSE
 //    BEGIN_RCPP
 //        Rcpp::RObject rcpp_result_gen;
 //        Rcpp::RNGScope rcpp_rngScope_gen;
-//        Rcpp::XPtr<dtm_type> ptr(xpSEXP);
+//        Rcpp::XPtr<dtm_t> ptr(xpSEXP);
 //        IntegerVector s(sSEXP);
 //        IntegerVector t(tSEXP);
 //        bool verbose = as<bool>(verboseSEXP);
